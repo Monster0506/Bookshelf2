@@ -183,16 +183,31 @@ function ArticleList() {
   const archiveArticle = async (articleId, currentArchived) => {
     try {
       const articleRef = doc(db, "articles", articleId);
-      await updateDoc(articleRef, { archived: !currentArchived });
+      const articleSnapshot = await getDoc(articleRef);
 
-      // Update the local state
-      setArticles((prevArticles) =>
-        prevArticles.map((article) =>
-          article.id === articleId
-            ? { ...article, archived: !currentArchived }
-            : article,
-        ),
-      );
+      if (articleSnapshot.exists()) {
+        const articleData = articleSnapshot.data();
+
+        // Check if the current user is the owner of the article
+        if (articleData.userid !== currentUser.uid) {
+          console.error("You do not have permission to archive this article.");
+          return; // Exit the function if the user is not the owner
+        }
+
+        // Update the archive status
+        await updateDoc(articleRef, { archived: !currentArchived });
+
+        // Update the local state
+        setArticles((prevArticles) =>
+          prevArticles.map((article) =>
+            article.id === articleId
+              ? { ...article, archived: !currentArchived }
+              : article,
+          ),
+        );
+      } else {
+        console.error("Article not found.");
+      }
     } catch (error) {
       console.error("Error archiving article:", error);
     }
@@ -206,6 +221,12 @@ function ArticleList() {
 
       if (articleSnapshot.exists()) {
         const articleData = articleSnapshot.data();
+
+        // Check if the current user is the owner of the article
+        if (articleData.userid !== currentUser.uid) {
+          console.error("You do not have permission to delete this article.");
+          return; // Exit the function if the user is not the owner
+        }
 
         // Copy the article data to the "trash" collection
         const trashRef = doc(db, "trash", articleId); // Use the same ID for the trash document
@@ -228,6 +249,7 @@ function ArticleList() {
       console.error("Error moving article to trash:", error);
     }
   };
+
   // Function to handle context menu visibility
   const handleContextMenuToggle = (articleId) => {
     setContextMenu((prevState) => (prevState === articleId ? null : articleId));
@@ -400,33 +422,39 @@ function ArticleList() {
                           ? "Mark as Read"
                           : "Mark as Unread"}
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent link navigation
-                          archiveArticle(article.id, article.archived);
-                          setContextMenu(null);
-                        }}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                      >
-                        {article.archived ? "Unarchive" : "Archive"}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent link navigation
-                          deleteArticle(article.id);
-                          setContextMenu(null);
-                        }}
-                        className="block px-4 py-2 text-sm text-red-700 hover:bg-red-100 w-full text-left"
-                      >
-                        Delete
-                      </button>
+                      {/* Show archive option only if the current user is the owner */}
+                      {article.userid === currentUser.uid && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent link navigation
+                            archiveArticle(article.id, article.archived);
+                            setContextMenu(null);
+                          }}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        >
+                          {article.archived ? "Unarchive" : "Archive"}
+                        </button>
+                      )}
+                      {/* Show delete option only if the current user is the owner */}
+                      {article.userid === currentUser.uid && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent link navigation
+                            deleteArticle(article.id);
+                            setContextMenu(null);
+                          }}
+                          className="block px-4 py-2 text-sm text-red-700 hover:bg-red-100 w-full text-left"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
-        ))}{" "}
+        ))}
       </div>
     </div>
   );

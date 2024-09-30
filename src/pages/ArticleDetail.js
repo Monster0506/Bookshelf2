@@ -13,10 +13,12 @@ import ReactMarkdown from "react-markdown";
 import MdEditor from "react-markdown-editor-lite";
 import "react-markdown-editor-lite/lib/index.css";
 import { FaArrowLeft, FaPlus } from "react-icons/fa";
+import { useAuth } from "../contexts/AuthContext"; // Assuming you have an AuthContext set up
 
 function ArticleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUser } = useAuth(); // Get the current user
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,6 +30,7 @@ function ArticleDetail() {
   const [saving, setSaving] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState([]); // Tags from Firestore
   const [showTagDropdown, setShowTagDropdown] = useState(false); // Toggle dropdown visibility
+  const [canEdit, setCanEdit] = useState(false); // State to check if the user can edit the article
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -44,6 +47,13 @@ function ArticleDetail() {
           setTags(articleData.tags?.join(", ") || "");
           setStatus(articleData.status || "UNREAD");
           setNotes(articleData.note || "");
+
+          // Check if the current user is the owner of the article
+          if (articleData.userid === currentUser.uid) {
+            setCanEdit(true);
+          } else {
+            setCanEdit(false);
+          }
         } else {
           setError("Article not found.");
         }
@@ -68,7 +78,7 @@ function ArticleDetail() {
 
     fetchArticle();
     fetchTags(); // Fetch tags from Firestore
-  }, [id]);
+  }, [id, currentUser]);
 
   // Function to save metadata changes to Firestore
   const saveMetadata = async () => {
@@ -171,22 +181,25 @@ function ArticleDetail() {
                     handleMetadataChange("title", e.target.value)
                   }
                   className="w-full p-2 border rounded"
+                  disabled={!canEdit}
                 />
               ) : (
                 title
               )}
             </h1>
-            <button
-              onClick={() => {
-                if (editing) {
-                  saveMetadata(); // Save metadata when exiting edit mode
-                }
-                setEditing(!editing);
-              }}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              {editing ? "Save" : "Edit"}
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  if (editing) {
+                    saveMetadata(); // Save metadata when exiting edit mode
+                  }
+                  setEditing(!editing);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                {editing ? "Save" : "Edit"}
+              </button>
+            )}
           </div>
 
           <p className="text-sm text-gray-500 mb-4">{article.source}</p>
@@ -205,31 +218,34 @@ function ArticleDetail() {
                     }
                     className="w-full p-2 border rounded"
                     placeholder="Add tags, separated by commas"
+                    disabled={!canEdit}
                   />
-                  <div className="relative mt-2">
-                    <button
-                      className="flex items-center px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                      onClick={() => setShowTagDropdown(!showTagDropdown)}
-                    >
-                      <FaPlus className="mr-1" /> Add from suggestions
-                    </button>
-                    {showTagDropdown && (
-                      <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
-                        {tagSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-200"
-                            onClick={() => {
-                              handleTagSelect(suggestion);
-                              setShowTagDropdown(false);
-                            }}
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {canEdit && (
+                    <div className="relative mt-2">
+                      <button
+                        className="flex items-center px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                        onClick={() => setShowTagDropdown(!showTagDropdown)}
+                      >
+                        <FaPlus className="mr-1" /> Add from suggestions
+                      </button>
+                      {showTagDropdown && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
+                          {tagSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-200"
+                              onClick={() => {
+                                handleTagSelect(suggestion);
+                                setShowTagDropdown(false);
+                              }}
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
@@ -254,6 +270,7 @@ function ArticleDetail() {
                     handleMetadataChange("status", e.target.value)
                   }
                   className="w-full p-2 border rounded"
+                  disabled={!canEdit}
                 >
                   <option value="READ">Read</option>
                   <option value="UNREAD">Unread</option>
@@ -288,12 +305,19 @@ function ArticleDetail() {
               style={{ height: "300px" }}
               renderHTML={(text) => <ReactMarkdown>{text}</ReactMarkdown>}
               onChange={handleNotesChange}
+              readOnly={!canEdit} // Make the notes editor read-only if the user cannot edit
             />
             {/* Save Status Indicator */}
             <div className="text-sm text-gray-500 mt-2">
               {saving ? "Saving..." : "Saved"}
             </div>
           </div>
+
+          {!canEdit && (
+            <p className="text-red-500 mt-4">
+              You do not have permission to edit this article.
+            </p>
+          )}
         </div>
       )}
     </div>
