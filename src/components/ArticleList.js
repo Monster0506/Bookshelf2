@@ -13,6 +13,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { FaSearch, FaFilter, FaEllipsisV } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 function ArticleList() {
   const { currentUser } = useAuth();
@@ -333,35 +334,37 @@ function ArticleList() {
       {/* Article List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredArticles.map((article) => (
-          <div
-            key={article.id}
-            className="p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 relative"
-          >
-            <h2 className="text-2xl font-semibold mb-2 text-gray-800">
-              {article.title}
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">{article.source}</p>
+          <div key={article.id} className="relative">
+            <Link
+              to={`/articles/${article.id}`}
+              className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+            >
+              <h2 className="text-2xl font-semibold mb-2 text-gray-800">
+                {article.title}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">{article.source}</p>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-              {article.tags &&
-                article.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full"
-                  >
-                    {tag}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {article.tags &&
+                  article.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+              </div>
+
+              <div className="text-gray-600 mb-2">
+                <p className="mb-1">
+                  Reading Time:{" "}
+                  <span className="font-medium">
+                    {article.read.minutes || "N/A"}
                   </span>
-                ))}
-            </div>
-
-            <div className="text-gray-600 mb-2">
-              <p className="mb-1">
-                Reading Time:{" "}
-                <span className="font-medium">
-                  {article.read.minutes || "N/A"}
-                </span>
-              </p>
-            </div>
+                </p>
+              </div>
+            </Link>
 
             {/* Context Menu */}
             <div className="absolute top-2 right-2">
@@ -370,7 +373,10 @@ function ArticleList() {
                   className="inline-flex justify-center w-full p-2 text-sm font-medium text-gray-500 hover:text-gray-700"
                   aria-haspopup="true"
                   aria-expanded="true"
-                  onClick={() => handleContextMenuToggle(article.id)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent link navigation
+                    handleContextMenuToggle(article.id);
+                  }}
                 >
                   <FaEllipsisV />
                 </button>
@@ -383,7 +389,8 @@ function ArticleList() {
                       aria-labelledby="options-menu"
                     >
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent link navigation
                           toggleArticleStatus(article.id, article.status);
                           setContextMenu(null);
                         }}
@@ -394,7 +401,8 @@ function ArticleList() {
                           : "Mark as Unread"}
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent link navigation
                           archiveArticle(article.id, article.archived);
                           setContextMenu(null);
                         }}
@@ -403,7 +411,8 @@ function ArticleList() {
                         {article.archived ? "Unarchive" : "Archive"}
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent link navigation
                           deleteArticle(article.id);
                           setContextMenu(null);
                         }}
@@ -417,7 +426,7 @@ function ArticleList() {
               </div>
             </div>
           </div>
-        ))}
+        ))}{" "}
       </div>
     </div>
   );
