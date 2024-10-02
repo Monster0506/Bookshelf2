@@ -1,5 +1,8 @@
 import { Readability } from "@mozilla/readability";
-import * as pdfjsLib from "pdfjs-dist";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
+
+// Disable the worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 
 // Function to process HTML files
 export const processHTMLFile = async (file) => {
@@ -13,12 +16,16 @@ export const processHTMLFile = async (file) => {
 
     if (!article) throw new Error("Could not parse article content.");
 
-    const wordCount = article.textContent.trim().split(/\s+/).length;
+    // Generate the plaintext by removing HTML tags and classes
+    const plaintext = article.textContent;
+
+    const wordCount = plaintext.trim().split(/\s+/).length;
     const readingMinutes = Math.ceil(wordCount / 200);
     const readingTime = `${readingMinutes} minute${readingMinutes > 1 ? "s" : ""}`;
 
     return {
-      content: article.textContent,
+      content: article.content, // This retains the HTML structure for markdown rendering
+      plaintext, // Stripped text content without HTML elements
       readingTime,
       wordCount,
     };
@@ -26,13 +33,13 @@ export const processHTMLFile = async (file) => {
     console.error("Error processing HTML file:", error);
     return {
       content: "",
+      plaintext: "",
       readingTime: "",
       wordCount: 0,
     };
   }
 };
 
-// Function to process PDF files
 export const processPDFFile = async (file) => {
   try {
     const fileData = await file.arrayBuffer();
@@ -47,13 +54,17 @@ export const processPDFFile = async (file) => {
       pdfText += pageText + " ";
     }
 
+    // Generate the plaintext directly from the extracted text
+    const plaintext = pdfText.trim();
+
     // Calculate reading time based on word count (assuming ~200 words per minute)
-    const wordCount = pdfText.trim().split(/\s+/).length;
+    const wordCount = plaintext.split(/\s+/).length;
     const readingMinutes = Math.ceil(wordCount / 200);
     const readingTime = `${readingMinutes} minute${readingMinutes > 1 ? "s" : ""}`;
 
     return {
-      content: pdfText,
+      content: `<p>${plaintext.replace(/\n/g, "<br>")}</p>`, // Simple markdown content as HTML
+      plaintext, // The raw text content
       readingTime,
       wordCount,
     };
@@ -61,6 +72,7 @@ export const processPDFFile = async (file) => {
     console.error("Error processing PDF file:", error);
     return {
       content: "",
+      plaintext: "",
       readingTime: "",
       wordCount: 0,
     };

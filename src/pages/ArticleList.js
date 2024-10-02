@@ -12,8 +12,12 @@ import {
   doc,
   deleteDoc,
 } from "firebase/firestore";
-import { FaSearch, FaFilter, FaEllipsisV } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { FaFilter } from "react-icons/fa";
+import Loading from "../components/Loading";
+import ErrorComponent from "../components/Error";
+import ArticleCard from "../components/ArticleList/ArticleCard";
+import SearchBar from "../components/ArticleList/SearchBar";
+import FilterMenu from "../components/ArticleList/FilterMenu";
 
 function ArticleList() {
   const { currentUser } = useAuth();
@@ -124,12 +128,10 @@ function ArticleList() {
 
     // Filter by tags (article must include the tag)
     if (tagFilter) {
-      filtered = filtered.filter(
-        (article) =>
-          article.tags &&
-          article.tags.some(
-            (tag) => tag.toLowerCase() === tagFilter.toLowerCase(),
-          ),
+      filtered = filtered.filter((article) =>
+        article.tags?.some(
+          (tag) => tag.toLowerCase() === tagFilter.toLowerCase(),
+        ),
       );
     }
 
@@ -256,11 +258,11 @@ function ArticleList() {
   };
 
   if (loading) {
-    return <p>Loading articles...</p>;
+    return <Loading />;
   }
 
   if (error) {
-    return <p className="text-red-500">{error}</p>;
+    return <ErrorComponent error={error} />;
   }
 
   return (
@@ -269,16 +271,7 @@ function ArticleList() {
 
       {/* Search Bar and Filter Button */}
       <div className="flex items-center mb-4">
-        <div className="relative flex-grow">
-          <FaSearch className="absolute left-3 top-2.5 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search by title, content, or URL"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full p-2 pl-10 border rounded"
-          />
-        </div>
+        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <button
           onClick={() => setShowFilterMenu(!showFilterMenu)}
           className="p-2 ml-2 bg-gray-200 rounded hover:bg-gray-300"
@@ -289,171 +282,35 @@ function ArticleList() {
 
       {/* Filter Menu */}
       {showFilterMenu && (
-        <div className="p-4 mb-4 bg-white border rounded shadow-md space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="p-2 border rounded bg-gray-100"
-            >
-              <option value="">All Statuses</option>
-              <option value="READ">Read</option>
-              <option value="UNREAD">Unread</option>
-            </select>
-
-            <select
-              value={fileTypeFilter}
-              onChange={(e) => setFileTypeFilter(e.target.value)}
-              className="p-2 border rounded bg-gray-100"
-            >
-              <option value="">All File Types</option>
-              <option value="URL">URL</option>
-              <option value="PDF">PDF</option>
-              <option value="HTML">HTML</option>
-            </select>
-
-            <input
-              type="text"
-              placeholder="Filter by tag"
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="p-2 border rounded bg-gray-100"
-            />
-
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={publicFilter}
-                onChange={(e) => setPublicFilter(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <span>Public Only</span>
-            </label>
-
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={archiveFilter}
-                onChange={(e) => setArchiveFilter(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <span>Show Archived</span>
-            </label>
-
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-              className="p-2 border rounded bg-gray-100"
-            >
-              <option value="date">Sort by Date</option>
-              <option value="title">Sort by Title</option>
-              <option value="readingTime">Sort by Reading Time</option>
-            </select>
-          </div>
-        </div>
+        <FilterMenu
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          fileTypeFilter={fileTypeFilter}
+          setFileTypeFilter={setFileTypeFilter}
+          tagFilter={tagFilter}
+          setTagFilter={setTagFilter}
+          publicFilter={publicFilter}
+          setPublicFilter={setPublicFilter}
+          archiveFilter={archiveFilter}
+          setArchiveFilter={setArchiveFilter}
+          sortOption={sortOption}
+          setSortOption={setSortOption}
+        />
       )}
 
       {/* Article List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredArticles.map((article) => (
-          <div key={article.id} className="relative">
-            <Link
-              to={`/articles/${article.id}`}
-              className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
-            >
-              <h2 className="text-2xl font-semibold mb-2 text-gray-800">
-                {article.title}
-              </h2>
-              <p className="text-sm text-gray-500 mb-4">{article.source}</p>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                {article.tags &&
-                  article.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-              </div>
-
-              <div className="text-gray-600 mb-2">
-                <p className="mb-1">
-                  Reading Time:{" "}
-                  <span className="font-medium">
-                    {article.read.minutes || "N/A"}
-                  </span>
-                </p>
-              </div>
-            </Link>
-
-            {/* Context Menu */}
-            <div className="absolute top-2 right-2">
-              <div className="relative inline-block text-left">
-                <button
-                  className="inline-flex justify-center w-full p-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-                  aria-haspopup="true"
-                  aria-expanded="true"
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent link navigation
-                    handleContextMenuToggle(article.id);
-                  }}
-                >
-                  <FaEllipsisV />
-                </button>
-                {contextMenu === article.id && (
-                  <div className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                    <div
-                      className="py-1"
-                      role="menu"
-                      aria-orientation="vertical"
-                      aria-labelledby="options-menu"
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent link navigation
-                          toggleArticleStatus(article.id, article.status);
-                          setContextMenu(null);
-                        }}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                      >
-                        {article.status === "UNREAD"
-                          ? "Mark as Read"
-                          : "Mark as Unread"}
-                      </button>
-                      {/* Show archive option only if the current user is the owner */}
-                      {article.userid === currentUser.uid && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent link navigation
-                            archiveArticle(article.id, article.archived);
-                            setContextMenu(null);
-                          }}
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                        >
-                          {article.archived ? "Unarchive" : "Archive"}
-                        </button>
-                      )}
-                      {/* Show delete option only if the current user is the owner */}
-                      {article.userid === currentUser.uid && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent link navigation
-                            deleteArticle(article.id);
-                            setContextMenu(null);
-                          }}
-                          className="block px-4 py-2 text-sm text-red-700 hover:bg-red-100 w-full text-left"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ArticleCard
+            key={article.id}
+            article={article}
+            handleContextMenuToggle={handleContextMenuToggle}
+            contextMenu={contextMenu}
+            toggleArticleStatus={toggleArticleStatus}
+            archiveArticle={archiveArticle}
+            deleteArticle={deleteArticle}
+            currentUser={currentUser}
+          />
         ))}
       </div>
     </div>

@@ -13,12 +13,16 @@ import ReactMarkdown from "react-markdown";
 import MdEditor from "react-markdown-editor-lite";
 import "react-markdown-editor-lite/lib/index.css";
 import { FaArrowLeft, FaPlus } from "react-icons/fa";
-import { useAuth } from "../contexts/AuthContext"; // Assuming you have an AuthContext set up
+import { useAuth } from "../contexts/AuthContext";
+import { format } from "date-fns";
+import { findRelatedArticles } from "../utils/articleUtils";
+import Loading from "../components/Loading";
+import ErrorComponent from "../components/Error";
 
 function ArticleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth(); // Get the current user
+  const { currentUser } = useAuth();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -28,9 +32,14 @@ function ArticleDetail() {
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
-  const [tagSuggestions, setTagSuggestions] = useState([]); // Tags from Firestore
-  const [showTagDropdown, setShowTagDropdown] = useState(false); // Toggle dropdown visibility
-  const [canEdit, setCanEdit] = useState(false); // State to check if the user can edit the article
+  const [tagSuggestions, setTagSuggestions] = useState([]);
+  const [autoTagSuggestions, setAutoTagSuggestions] = useState([]);
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [showAutoTagDropdown, setShowAutoTagDropdown] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+  const [createdAt, setCreatedAt] = useState(null);
+  const [relatedArticles, setRelatedArticles] = useState([]);
+  const [showSummary, setShowSummary] = useState(false);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -39,21 +48,48 @@ function ArticleDetail() {
       try {
         const articleRef = doc(db, "articles", id);
         const articleSnapshot = await getDoc(articleRef);
+        const articlesSnapshot = await getDocs(collection(db, "articles"));
+        const allArticles = articlesSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
         if (articleSnapshot.exists()) {
+          const currentArticle = {
+            id: articleSnapshot.id,
+            ...articleSnapshot.data(),
+          };
           const articleData = articleSnapshot.data();
+
+          // Get related articles with similarity scores
+          const [similarityScores, related] = findRelatedArticles(
+            currentArticle,
+            allArticles,
+            10,
+          );
+          setRelatedArticles(
+            related.map((article, index) => ({
+              ...article,
+              similarity: similarityScores[index],
+            })),
+          );
+
+          const articleTags = Array.isArray(articleData.tags)
+            ? articleData.tags
+            : [];
+          const articleAutoTags = Array.isArray(articleData.autoTags)
+            ? articleData.autoTags
+            : [];
+
           setArticle(articleData);
           setTitle(articleData.title || "");
-          setTags(articleData.tags?.join(", ") || "");
+          setTags(articleTags.join(", "));
           setStatus(articleData.status || "UNREAD");
           setNotes(articleData.note || "");
+          setCreatedAt(articleData.date);
+          setAutoTagSuggestions(articleAutoTags);
 
-          // Check if the current user is the owner of the article
-          if (articleData.userid === currentUser.uid) {
-            setCanEdit(true);
-          } else {
-            setCanEdit(false);
-          }
+          setCanEdit(articleData.userid === currentUser.uid);
         } else {
           setError("Article not found.");
         }
@@ -77,10 +113,9 @@ function ArticleDetail() {
     };
 
     fetchArticle();
-    fetchTags(); // Fetch tags from Firestore
+    fetchTags();
   }, [id, currentUser]);
 
-  // Function to save metadata changes to Firestore
   const saveMetadata = async () => {
     try {
       setSaving(true);
@@ -88,16 +123,14 @@ function ArticleDetail() {
       const tagArray = tags
         .split(",")
         .map((tag) => tag.trim())
-        .filter((tag) => tag); // Remove empty tags
+        .filter((tag) => tag);
 
-      // Update the article with new metadata
       await updateDoc(articleRef, {
         title,
         tags: tagArray,
         status,
       });
 
-      // Add new tags to the 'tags' collection if they don't exist
       const tagsCollection = collection(db, "tags");
       for (const tag of tagArray) {
         const tagDoc = doc(tagsCollection, tag);
@@ -112,32 +145,28 @@ function ArticleDetail() {
     }
   };
 
-  // Function to handle metadata change
   const handleMetadataChange = (field, value) => {
     if (field === "title") setTitle(value);
     if (field === "tags") {
-      const formattedTags = value.replace(/^,?\s*/, ""); // Remove leading ", " if present
+      const formattedTags = value.replace(/^,?\s*/, "");
       setTags(formattedTags);
     }
     if (field === "status") setStatus(value);
   };
 
-  // Function to handle tag selection from dropdown
   const handleTagSelect = (tag) => {
     const currentTags = tags.split(",").map((tag) => tag.trim());
     if (!currentTags.includes(tag)) {
-      const updatedTags = [...currentTags, tag].filter((t) => t).join(", "); // Remove empty tags
+      const updatedTags = [...currentTags, tag].filter((t) => t).join(", ");
       setTags(updatedTags);
     }
   };
 
-  // Function to handle notes change
   const handleNotesChange = ({ text }) => {
     setNotes(text);
     saveNotes(text);
   };
 
-  // Function to save notes to Firestore
   const saveNotes = async (newNotes) => {
     try {
       setSaving(true);
@@ -152,17 +181,18 @@ function ArticleDetail() {
   };
 
   if (loading) {
-    return <p>Loading article...</p>;
+    return <Loading>Loading...</Loading>;
   }
 
   if (error) {
-    return <p className="text-red-500">{error}</p>;
+    return <ErrorComponent>{error}</ErrorComponent>;
   }
 
   return (
     <div className="p-4">
       {/* Back Button */}
       <button
+        type="button"
         onClick={() => navigate(-1)}
         className="flex items-center mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
       >
@@ -172,26 +202,34 @@ function ArticleDetail() {
       {article && (
         <div>
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold mb-2">
-              {editing ? (
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) =>
-                    handleMetadataChange("title", e.target.value)
-                  }
-                  className="w-full p-2 border rounded"
-                  disabled={!canEdit}
-                />
-              ) : (
-                title
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                {editing ? (
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) =>
+                      handleMetadataChange("title", e.target.value)
+                    }
+                    className="w-full p-2 border rounded"
+                    disabled={!canEdit}
+                  />
+                ) : (
+                  title
+                )}
+              </h1>
+              {createdAt && (
+                <p className="text-sm text-gray-500">
+                  Created: {format(new Date(createdAt.seconds * 1000), "PPp")}
+                </p>
               )}
-            </h1>
+            </div>
             {canEdit && (
               <button
+                type="button"
                 onClick={() => {
                   if (editing) {
-                    saveMetadata(); // Save metadata when exiting edit mode
+                    saveMetadata();
                   }
                   setEditing(!editing);
                 }}
@@ -204,7 +242,25 @@ function ArticleDetail() {
 
           <p className="text-sm text-gray-500 mb-4">{article.source}</p>
 
-          {/* Metadata Fields */}
+          {/* Summary Section */}
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold mb-2">Summary</h2>
+            {!showSummary ? (
+              <button
+                type="button"
+                onClick={() => setShowSummary(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Show Summary
+              </button>
+            ) : (
+              <p className="text-gray-700">
+                {article.summary || "No summary available."}
+              </p>
+            )}
+          </div>
+
+          {/* Tags Section */}
           <div className="mb-4">
             <div className="mb-2">
               <label className="block text-gray-700">Tags:</label>
@@ -221,30 +277,65 @@ function ArticleDetail() {
                     disabled={!canEdit}
                   />
                   {canEdit && (
-                    <div className="relative mt-2">
-                      <button
-                        className="flex items-center px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                        onClick={() => setShowTagDropdown(!showTagDropdown)}
-                      >
-                        <FaPlus className="mr-1" /> Add from suggestions
-                      </button>
-                      {showTagDropdown && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
-                          {tagSuggestions.map((suggestion, index) => (
-                            <button
-                              key={index}
-                              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-200"
-                              onClick={() => {
-                                handleTagSelect(suggestion);
-                                setShowTagDropdown(false);
-                              }}
-                            >
-                              {suggestion}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <>
+                      {/* Button to Add from Existing Tags */}
+                      <div className="relative mt-2">
+                        <button
+                          type="button"
+                          className="flex items-center px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                          onClick={() => setShowTagDropdown(!showTagDropdown)}
+                        >
+                          <FaPlus className="mr-1" /> Add from Existing Tags
+                        </button>
+                        {showTagDropdown && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
+                            {tagSuggestions.map((suggestion, index) => (
+                              <button
+                                type="button"
+                                key={index}
+                                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-200"
+                                onClick={() => {
+                                  handleTagSelect(suggestion);
+                                  setShowTagDropdown(false);
+                                }}
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Button to Add from Auto Tags */}
+                      <div className="relative mt-2">
+                        <button
+                          type="button"
+                          className="flex items-center px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                          onClick={() =>
+                            setShowAutoTagDropdown(!showAutoTagDropdown)
+                          }
+                        >
+                          <FaPlus className="mr-1" /> Add from Auto Tags
+                        </button>
+                        {showAutoTagDropdown && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
+                            {autoTagSuggestions.map((autoTag, index) => (
+                              <button
+                                type="button"
+                                key={index}
+                                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-200"
+                                onClick={() => {
+                                  handleTagSelect(autoTag);
+                                  setShowAutoTagDropdown(false);
+                                }}
+                              >
+                                {autoTag}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               ) : (
@@ -291,7 +382,7 @@ function ArticleDetail() {
 
           {/* Article Content - Render HTML */}
           <div
-            className="prose mb-4"
+            className="prose mb-4 markdown-content"
             dangerouslySetInnerHTML={{
               __html: article.markdown || "No content available.",
             }}
@@ -305,19 +396,42 @@ function ArticleDetail() {
               style={{ height: "300px" }}
               renderHTML={(text) => <ReactMarkdown>{text}</ReactMarkdown>}
               onChange={handleNotesChange}
-              readOnly={!canEdit} // Make the notes editor read-only if the user cannot edit
+              readOnly={!canEdit}
             />
-            {/* Save Status Indicator */}
             <div className="text-sm text-gray-500 mt-2">
               {saving ? "Saving..." : "Saved"}
             </div>
           </div>
 
           {!canEdit && (
-            <p className="text-red-500 mt-4">
+            <ErrorComponent>
               You do not have permission to edit this article.
-            </p>
+            </ErrorComponent>
           )}
+
+          {/* Render related articles */}
+          <div className="mt-6">
+            <h2 className="text-2xl font-semibold mb-4">Related Articles</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {relatedArticles.map((relatedArticle) => (
+                <div
+                  key={relatedArticle.id}
+                  className="p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                >
+                  <a
+                    href={`/articles/${relatedArticle.id}`}
+                    className="text-blue-600 hover:underline text-lg font-medium block mb-2"
+                  >
+                    {relatedArticle.title}
+                  </a>
+                  <p className="text-sm text-gray-500">
+                    Similarity Score:{" "}
+                    {(relatedArticle.similarity * 100).toFixed(0)}%
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

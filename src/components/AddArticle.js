@@ -3,8 +3,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { addArticle } from "../utils/firestoreUtils";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "../firebaseConfig";
-import { fetchAndProcessContent } from "../utils/contentUtils";
-import { processHTMLFile, processPDFFile } from "../utils/fileUtils"; // Import the new utility functions
+import {
+  fetchAndProcessContent,
+  generateTags,
+  summarizeContent,
+} from "../utils/contentUtils";
+import { processHTMLFile, processPDFFile } from "../utils/fileUtils";
 
 function AddArticle() {
   const { currentUser } = useAuth();
@@ -64,28 +68,53 @@ function AddArticle() {
     try {
       let sourceURL = source;
       let articleContent = "";
-      let readInfo = { text: "", minutes: "", time: "", words: "" };
+      let articleSummary = "";
+      let plaintext = "";
+      let readInfo = {
+        text: "",
+        minutes: "",
+        time: "",
+        words: "",
+        summary: "",
+      };
+      let autoTags = [];
 
       if (filetype === "URL") {
         try {
-          const { content, readingTime, wordCount } =
-            await fetchAndProcessContent(source);
+          const {
+            content,
+            readingTime,
+            wordCount,
+            plaintext: extractedPlaintext,
+          } = await fetchAndProcessContent(source);
           articleContent = content;
+          plaintext = extractedPlaintext;
+          autoTags = generateTags(plaintext);
+          articleSummary = await summarizeContent(plaintext);
           readInfo = {
             text: content,
             minutes: readingTime,
             time: readingTime,
+            summary: articleSummary,
             words: wordCount.toString(),
           };
         } catch (contentError) {
           setError(
-            "Failed to extract content from the URL. Please try a different URL.",
+            `Failed to extract content from the URL. Please try a different URL.${contentError}`,
           );
           return;
         }
       } else if (filetype === "HTML" && file) {
-        const { content, readingTime, wordCount } = await processHTMLFile(file);
+        const {
+          content,
+          readingTime,
+          wordCount,
+          plaintext: extractedPlaintext,
+        } = await processHTMLFile(file);
         articleContent = content;
+        plaintext = extractedPlaintext; // Get plaintext for tag generation
+        autoTags = generateTags(plaintext);
+        articleSummary = await summarizeContent(plaintext);
         readInfo = {
           text: content,
           minutes: readingTime,
@@ -94,8 +123,17 @@ function AddArticle() {
         };
         sourceURL = await uploadFileToStorage();
       } else if (filetype === "PDF" && file) {
-        const { content, readingTime, wordCount } = await processPDFFile(file);
+        const {
+          content,
+          readingTime,
+          wordCount,
+          plaintext: extractedPlaintext,
+        } = await processPDFFile(file);
         articleContent = content;
+        plaintext = extractedPlaintext; // Get plaintext for tag generation
+        autoTags = generateTags(plaintext);
+        articleSummary = summarizeContent(plaintext);
+
         readInfo = {
           text: content,
           minutes: readingTime,
@@ -112,12 +150,14 @@ function AddArticle() {
         public: publicStatus,
         source: sourceURL,
         status,
-        tags: tags.split(",").map((tag) => tag.trim()),
+        tags,
+        autoTags,
         userid: currentUser.uid,
         archived: false,
         markdown: articleContent,
+        plaintext, // Store plaintext for future use
         read: readInfo,
-        SUMMARY: [],
+        summary: articleSummary,
       });
 
       setSuccess("Article added successfully!");
@@ -206,7 +246,11 @@ function AddArticle() {
           </div>
           <button
             type="submit"
-            className={`w-full py-2 text-white rounded ${isUploading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"}`}
+            className={`w-full py-2 text-white rounded ${
+              isUploading
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-blue-500 hover:bg-blue-600"
+            }`}
             disabled={isUploading}
           >
             {isUploading ? "Uploading..." : "Add Article"}

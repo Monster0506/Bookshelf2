@@ -5,16 +5,16 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import Home from "./pages/Home";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import ArticleDetail from "./pages/ArticleDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
-import TrashView from "./components/TrashView";
+import TrashView from "./pages/TrashView";
 import Navbar from "./components/Navbar";
 import AddArticle from "./components/AddArticle";
-import ArticleList from "./components/ArticleList"; // Import the ArticleList component
+import ArticleList from "./pages/ArticleList"; // Import the ArticleList component
+import ArticleGraph from "./components/ArticleGraph";
 
 function App() {
   return (
@@ -64,6 +64,7 @@ function App() {
               </ProtectedRoute>
             }
           />{" "}
+          <Route path="/graph" element={<ArticleGraph />} />
           <Route path="/articles/:id" element={<ArticleDetail />} />
           {/* Add ArticleList route */}
           <Route path="*" element={<Navigate to="/" />} />

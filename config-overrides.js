@@ -3,6 +3,8 @@ module.exports = function override(config, env) {
   config.resolve.fallback = {
     fs: false,
     path: false,
+    url: false,
+    util: false,
     http: false,
     https: false,
     vm: false,
