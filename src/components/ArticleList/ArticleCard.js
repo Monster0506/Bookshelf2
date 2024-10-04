@@ -1,7 +1,9 @@
-// ArticleCard.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaEllipsisV } from "react-icons/fa";
+import { CSSTransition } from "react-transition-group";
+import ShareModal from "./ShareModal";
+import "../../css/ArticleCard.css"; // Custom CSS for additional animations
 
 function ArticleCard({
   article,
@@ -12,13 +14,55 @@ function ArticleCard({
   deleteArticle,
   currentUser,
 }) {
+  const [shareLink, setShareLink] = useState("");
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  // Set the base URL once when the component mounts
+  useEffect(() => {
+    const fullUrl = `${window.location.origin}/articles/${article.id}`;
+    setShareLink(fullUrl);
+  }, [article.id]);
+
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const generateShareUrl = (platform) => {
+    const encodedLink = encodeURIComponent(shareLink);
+    switch (platform) {
+      case "facebook":
+        return `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`;
+      case "twitter":
+        return `https://twitter.com/intent/tweet?url=${encodedLink}`;
+      case "email":
+        return `mailto:?subject=Check%20this%20out&body=${encodedLink}`;
+      default:
+        return "";
+    }
+  };
+
   return (
     <div key={article.id} className="relative">
+      {/* Share Modal with Animation */}
+      <CSSTransition
+        in={showShareModal}
+        timeout={300}
+        classNames="modal"
+        unmountOnExit
+      >
+        <ShareModal
+          show={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          shareLink={shareLink}
+          generateShareUrl={generateShareUrl}
+        />
+      </CSSTransition>
+
       <Link
         to={`/articles/${article.id}`}
-        className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+        className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-2xl transition-shadow duration-500 transform hover:scale-105"
       >
-        <h2 className="text-2xl font-semibold mb-2 text-gray-800">
+        <h2 className="text-2xl font-semibold mb-2 text-gray-800 transition-transform duration-500 hover:translate-x-1">
           {article.title}
         </h2>
         <p className="text-sm text-gray-500 mb-4">{article.source}</p>
@@ -28,7 +72,7 @@ function ArticleCard({
             article.tags.map((tag, index) => (
               <span
                 key={index}
-                className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full"
+                className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full transition-transform duration-500 transform hover:scale-110"
               >
                 {tag}
               </span>
@@ -43,11 +87,11 @@ function ArticleCard({
         </div>
       </Link>
 
-      {/* Context Menu */}
+      {/* Context Menu with Animation */}
       <div className="absolute top-2 right-2">
         <div className="relative inline-block text-left">
           <button
-            className="inline-flex justify-center w-full p-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+            className="inline-flex justify-center w-full p-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-transform duration-300 transform hover:rotate-90"
             aria-haspopup="true"
             aria-expanded="true"
             onClick={(e) => {
@@ -57,7 +101,12 @@ function ArticleCard({
           >
             <FaEllipsisV />
           </button>
-          {contextMenu === article.id && (
+          <CSSTransition
+            in={contextMenu === article.id}
+            timeout={200}
+            classNames="context-menu"
+            unmountOnExit
+          >
             <div className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
               <div
                 className="py-1"
@@ -76,7 +125,6 @@ function ArticleCard({
                     ? "Mark as Read"
                     : "Mark as Unread"}
                 </button>
-                {/* Show archive option only if the current user is the owner */}
                 {article.userid === currentUser.uid && (
                   <button
                     onClick={(e) => {
@@ -88,7 +136,13 @@ function ArticleCard({
                     {article.archived ? "Unarchive" : "Archive"}
                   </button>
                 )}
-                {/* Show delete option only if the current user is the owner */}
+                <button
+                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                  type="button"
+                  onClick={handleShare}
+                >
+                  Share
+                </button>
                 {article.userid === currentUser.uid && (
                   <button
                     onClick={(e) => {
@@ -102,7 +156,7 @@ function ArticleCard({
                 )}
               </div>
             </div>
-          )}
+          </CSSTransition>
         </div>
       </div>
     </div>

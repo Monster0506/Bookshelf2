@@ -9,6 +9,7 @@ import {
   summarizeContent,
 } from "../utils/contentUtils";
 import { processHTMLFile, processPDFFile } from "../utils/fileUtils";
+import { motion } from "framer-motion";
 
 function AddArticle() {
   const { currentUser } = useAuth();
@@ -100,7 +101,7 @@ function AddArticle() {
           };
         } catch (contentError) {
           setError(
-            `Failed to extract content from the URL. Please try a different URL.${contentError}`,
+            `Failed to extract content from the URL. Please try a different URL. ${contentError}`,
           );
           return;
         }
@@ -112,7 +113,7 @@ function AddArticle() {
           plaintext: extractedPlaintext,
         } = await processHTMLFile(file);
         articleContent = content;
-        plaintext = extractedPlaintext; // Get plaintext for tag generation
+        plaintext = extractedPlaintext;
         autoTags = generateTags(plaintext);
         articleSummary = await summarizeContent(plaintext);
         readInfo = {
@@ -130,9 +131,9 @@ function AddArticle() {
           plaintext: extractedPlaintext,
         } = await processPDFFile(file);
         articleContent = content;
-        plaintext = extractedPlaintext; // Get plaintext for tag generation
+        plaintext = extractedPlaintext;
         autoTags = generateTags(plaintext);
-        articleSummary = summarizeContent(plaintext);
+        articleSummary = await summarizeContent(plaintext);
 
         readInfo = {
           text: content,
@@ -143,7 +144,6 @@ function AddArticle() {
         sourceURL = await uploadFileToStorage();
       }
 
-      // Add the article to Firestore
       await addArticle({
         title,
         filetype,
@@ -155,7 +155,7 @@ function AddArticle() {
         userid: currentUser.uid,
         archived: false,
         markdown: articleContent,
-        plaintext, // Store plaintext for future use
+        plaintext,
         read: readInfo,
         summary: articleSummary,
       });
@@ -167,42 +167,90 @@ function AddArticle() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-lg p-8 space-y-6 bg-white rounded shadow-md">
-        <h1 className="text-2xl font-bold text-center">Add Article</h1>
-        {error && <p className="text-red-500">{error}</p>}
-        {success && <p className="text-green-500">{success}</p>}
+    <motion.div
+      className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-100 to-purple-100"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <motion.div
+        className="w-full max-w-lg p-8 space-y-6 bg-white rounded-2xl shadow-lg"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100, duration: 0.5 }}
+      >
+        <motion.h1
+          className="text-3xl font-bold text-center text-purple-700"
+          initial={{ scale: 0.8 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          Add Article
+        </motion.h1>
+        {error && (
+          <motion.p
+            className="text-red-500 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {error}
+          </motion.p>
+        )}
+        {success && (
+          <motion.p
+            className="text-green-500 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {success}
+          </motion.p>
+        )}
         <form onSubmit={handleAddArticle} className="space-y-4">
-          <div>
+          <motion.div
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             <input
               type="text"
               placeholder="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               required
             />
-          </div>
-          <div>
+          </motion.div>
+          <motion.div
+            initial={{ x: 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             <select
               value={filetype}
               onChange={(e) => setFiletype(e.target.value)}
-              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
               required
             >
               <option value="URL">URL</option>
               <option value="PDF">PDF</option>
               <option value="HTML">HTML</option>
             </select>
-          </div>
-          <div>
+          </motion.div>
+          <motion.div
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             {filetype === "URL" ? (
               <input
                 type="text"
                 placeholder="Source (URL)"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 required
               />
             ) : (
@@ -210,54 +258,69 @@ function AddArticle() {
                 type="file"
                 accept={filetype === "PDF" ? "application/pdf" : "text/html"}
                 onChange={handleFileChange}
-                className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 required
               />
             )}
-          </div>
-          <div>
+          </motion.div>
+          <motion.div
+            initial={{ x: 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
               required
             >
               <option value="READ">READ</option>
               <option value="UNREAD">UNREAD</option>
             </select>
-          </div>
-          <div>
+          </motion.div>
+          <motion.div
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             <input
               type="text"
               placeholder="Tags (comma-separated)"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-          </div>
-          <div className="flex items-center">
+          </motion.div>
+          <motion.div
+            className="flex items-center"
+            initial={{ x: 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             <input
               type="checkbox"
               checked={publicStatus}
               onChange={(e) => setPublicStatus(e.target.checked)}
-              className="mr-2"
+              className="mr-2 focus:ring-purple-500"
             />
-            <label>Public</label>
-          </div>
-          <button
+            <label className="text-gray-700">Public</label>
+          </motion.div>
+          <motion.button
             type="submit"
-            className={`w-full py-2 text-white rounded ${
+            className={`w-full py-3 text-white rounded-lg shadow-md transition-transform duration-300 ${
               isUploading
                 ? "bg-gray-500 cursor-not-allowed"
-                : "bg-blue-500 hover:bg-blue-600"
+                : "bg-purple-600 hover:bg-purple-700 transform hover:scale-105"
             }`}
             disabled={isUploading}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             {isUploading ? "Uploading..." : "Add Article"}
-          </button>
+          </motion.button>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

@@ -12,7 +12,7 @@ import ArticleDetail from "./pages/ArticleDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TrashView from "./pages/TrashView";
 import Navbar from "./components/Navbar";
-import AddArticle from "./components/AddArticle";
+import AddArticle from "./pages/AddArticle";
 import ArticleList from "./pages/ArticleList"; // Import the ArticleList component
 import ArticleGraph from "./components/ArticleGraph";
 

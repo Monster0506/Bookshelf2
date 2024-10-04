@@ -72,7 +72,6 @@ function ArticleList() {
             .filter((doc) => doc.data().userid !== currentUser.uid) // Avoid duplicates
             .map((doc) => ({ id: doc.id, ...doc.data() })),
         ];
-
         setArticles(articlesData);
         setFilteredArticles(articlesData);
       } catch (err) {
