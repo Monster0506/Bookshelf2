@@ -3,11 +3,13 @@ import ReactMarkdown from "react-markdown";
 import MdEditor from "react-markdown-editor-lite";
 import "react-markdown-editor-lite/lib/index.css";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
 
 function ContentSection({
   article,
   title,
   setTitle,
+  saveNotes,
   notes,
   setNotes,
   editing,
@@ -38,70 +40,118 @@ function ContentSection({
   };
 
   return (
-    <div className="p-6 bg-white shadow rounded-lg">
-      <h1 className="text-3xl font-bold mb-4">
+    <motion.div
+      className="p-6 bg-white shadow rounded-lg"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <motion.h1
+        className="text-3xl font-bold mb-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
         {editing ? (
-          <input
+          <motion.input
             type="text"
             value={title}
             onChange={(e) => handleMetadataChange("title", e.target.value)}
             className="w-full p-2 border rounded"
             disabled={!canEdit}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           />
         ) : (
           title
         )}
-      </h1>
+      </motion.h1>
+
       {createdAt && (
-        <p className="text-sm text-gray-500 mb-4">
+        <motion.p
+          className="text-sm text-gray-500 mb-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
           Created: {format(new Date(createdAt.seconds * 1000), "PPp")}
-        </p>
+        </motion.p>
       )}
 
-      <div className="mb-6">
+      <motion.div
+        className="mb-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
         <h2 className="text-2xl font-semibold mb-2">Summary</h2>
         {!showSummary ? (
-          <button
+          <motion.button
             onClick={() => setShowSummary(true)}
             className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition duration-300"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
             Show Summary
-          </button>
+          </motion.button>
         ) : (
-          <p className="text-gray-700">
+          <motion.p
+            className="text-gray-700"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             {article.summary || "No summary available."}
-          </p>
+          </motion.p>
         )}
-      </div>
+      </motion.div>
 
-      <div
-        className="prose mb-6"
+      <motion.div
+        className="prose mb-6 markdown-content"
         dangerouslySetInnerHTML={{
           __html: article.markdown || "No content available.",
         }}
-      ></div>
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.5 }}
+      ></motion.div>
 
-      <div className="mb-6">
+      <motion.div
+        className="mb-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.6 }}
+      >
         <h2 className="text-2xl font-semibold mb-2">Notes</h2>
         <MdEditor
           value={notes}
           style={{ height: "300px" }}
           renderHTML={(text) => <ReactMarkdown>{text}</ReactMarkdown>}
-          onChange={({ text }) => setNotes(text)}
+          onChange={({ text }) => {
+            setNotes(text);
+            saveNotes();
+          }}
           readOnly={!canEdit}
         />
         <div className="text-sm text-gray-500 mt-2">
           {saving ? "Saving..." : "Saved"}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="mt-6">
+      <motion.div
+        className="mt-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.7 }}
+      >
         <h2 className="text-2xl font-semibold mb-4">Related Articles</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {relatedArticles.map((relatedArticle) => (
-            <div
+            <motion.div
               key={relatedArticle.id}
               className="p-4 bg-white shadow rounded-lg hover:shadow-md transition duration-300"
+              whileHover={{ scale: 1.02 }}
             >
               <a
                 href={`/articles/${relatedArticle.id}`}
@@ -113,11 +163,11 @@ function ContentSection({
                 Similarity Score: {(relatedArticle.similarity * 100).toFixed(0)}
                 %
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

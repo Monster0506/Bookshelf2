@@ -100,6 +100,24 @@ function ArticleDetail() {
     fetchArticle();
   }, [id, currentUser]);
 
+  const saveNotes = async () => {
+    if (notes && canEdit) {
+      try {
+        setSaving(true); // Indicate saving process
+        const articleRef = doc(db, "articles", id);
+        await updateDoc(articleRef, {
+          note: notes,
+        });
+        setArticle((prevArticle) => ({ ...prevArticle, note: notes }));
+        console.log("Notes saved successfully.");
+      } catch (error) {
+        console.error("Error saving notes:", error);
+      } finally {
+        setSaving(false); // Reset saving state
+      }
+    }
+  };
+
   const saveMetadata = useCallback(async () => {
     try {
       console.log("Saving metadata...");
@@ -167,6 +185,7 @@ function ArticleDetail() {
             setTags={setTags}
             createdAt={createdAt}
             showSummary={showSummary}
+            saveNotes={saveNotes}
             setShowSummary={setShowSummary}
             relatedArticles={relatedArticles}
             canEdit={canEdit}
