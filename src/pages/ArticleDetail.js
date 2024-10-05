@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../firebaseConfig";
 import {
@@ -65,7 +66,7 @@ function ArticleDetail() {
           const [similarityScores, related] = findRelatedArticles(
             currentArticle,
             allArticles,
-            10,
+            5,
           );
           setRelatedArticles(
             related.map((article, index) => ({
@@ -240,7 +241,9 @@ function ArticleDetail() {
             )}
           </div>
 
-          <p className="text-sm text-gray-500 mb-4">{article.source}</p>
+          <Link to={article.source}>
+            <p className="text-sm text-gray-500 mb-4">{article.source}</p>
+          </Link>
 
           {/* Summary Section */}
           <div className="mb-4">

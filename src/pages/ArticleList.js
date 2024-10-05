@@ -126,9 +126,10 @@ function ArticleList() {
     }
 
     // Filter by tags (article must include the tag)
+    //
     if (tagFilter) {
       filtered = filtered.filter((article) =>
-        article.tags?.some(
+        (article.tags || []).some(
           (tag) => tag.toLowerCase() === tagFilter.toLowerCase(),
         ),
       );

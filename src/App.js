@@ -64,8 +64,8 @@ function App() {
               </ProtectedRoute>
             }
           />{" "}
-          <Route path="/graph" element={<ArticleGraph />} />
           <Route path="/articles/:id" element={<ArticleDetail />} />
+          <Route path="/graph" element={<ArticleGraph />} />
           {/* Add ArticleList route */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
