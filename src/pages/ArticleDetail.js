@@ -73,6 +73,15 @@ function ArticleDetail() {
         setLoading(false);
       }
     };
+    const fetchTags = async () => {
+      try {
+        const tagsSnapshot = await getDocs(collection(db, "tags"));
+        const tagsData = tagsSnapshot.docs.map((doc) => doc.data().name);
+        setTagSuggestions(tagsData);
+      } catch (err) {
+        console.error("Error fetching tags:", err);
+      }
+    };
 
     const fetchRelatedArticles = async (currentArticle) => {
       try {
@@ -98,6 +107,7 @@ function ArticleDetail() {
       }
     };
 
+    fetchTags();
     fetchArticle();
   }, [id, currentUser]);
 

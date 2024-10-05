@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { FaPlus } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,10 +16,14 @@ function Sidebar({
   setEditing,
   canEdit,
   tagSuggestions,
+  autoTagSuggestions,
   showSidebar,
   setShowSidebar,
   saving,
 }) {
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [showAutoTagSuggestions, setShowAutoTagSuggestions] = useState(false);
+
   const handleMetadataChange = (field, value) => {
     if (field === "tags") {
       const formattedTags = value.replace(/^,?\s*/, "");
@@ -27,7 +31,17 @@ function Sidebar({
     }
     if (field === "status") setStatus(value);
     if (field === "public") setIsPublic(value);
-    console.log(field, value);
+  };
+
+  // Function to append a tag to the tags input
+  const appendTag = (tag) => {
+    const currentTags = tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    if (!currentTags.includes(tag)) {
+      setTags([...currentTags, tag].join(", "));
+    }
   };
 
   return (
@@ -60,6 +74,88 @@ function Sidebar({
 
           <div className="mb-6">
             <label className="block text-gray-700 mb-2 font-medium">
+              Tags:
+            </label>
+            {editing ? (
+              <>
+                <input
+                  type="text"
+                  value={tags}
+                  onChange={(e) => handleMetadataChange("tags", e.target.value)}
+                  className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Add tags, separated by commas"
+                />
+
+                {/* Tag Suggestions Button */}
+                <div className="mt-2">
+                  <button
+                    onClick={() => setShowTagSuggestions(!showTagSuggestions)}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  >
+                    Tag Suggestions
+                  </button>
+                  {showTagSuggestions && (
+                    <div className="mt-2 p-2 bg-white border rounded shadow-lg max-h-40 overflow-y-auto">
+                      {tagSuggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          className="p-1 cursor-pointer hover:bg-gray-100"
+                          onClick={() => {
+                            appendTag(suggestion);
+                            setShowTagSuggestions(false);
+                          }}
+                        >
+                          {suggestion}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Auto Tag Suggestions Button */}
+                <div className="mt-2">
+                  <button
+                    onClick={() =>
+                      setShowAutoTagSuggestions(!showAutoTagSuggestions)
+                    }
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  >
+                    Auto Tag Suggestions
+                  </button>
+                  {showAutoTagSuggestions && (
+                    <div className="mt-2 p-2 bg-white border rounded shadow-lg max-h-40 overflow-y-auto">
+                      {autoTagSuggestions.map((suggestion, index) => (
+                        <div
+                          key={index}
+                          className="p-1 cursor-pointer hover:bg-gray-100"
+                          onClick={() => {
+                            appendTag(suggestion);
+                            setShowAutoTagSuggestions(false);
+                          }}
+                        >
+                          {suggestion}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {tags.split(",").map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full"
+                  >
+                    {tag.trim()}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-gray-700 mb-2 font-medium">
               Public Status:
             </label>
             {editing ? (
@@ -83,32 +179,6 @@ function Sidebar({
               >
                 {isPublic ? "Public" : "Private"}
               </span>
-            )}
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">
-              Tags:
-            </label>
-            {editing ? (
-              <input
-                type="text"
-                value={tags}
-                onChange={(e) => handleMetadataChange("tags", e.target.value)}
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Add tags, separated by commas"
-              />
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {tags.split(",").map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full"
-                  >
-                    {tag.trim()}
-                  </span>
-                ))}
-              </div>
             )}
           </div>
 

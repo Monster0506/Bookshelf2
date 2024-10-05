@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../firebaseConfig";
 import {
@@ -101,7 +101,7 @@ function ArticleList() {
   }, [currentUser]);
 
   // Filtering logic
-  useEffect(() => {
+  useMemo(() => {
     let filtered = [...articles];
 
     // Search by title, content, or URL
