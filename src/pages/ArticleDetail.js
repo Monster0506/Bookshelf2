@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../firebaseConfig";
+import { useDebouncedCallback } from "use-debounce";
 import {
   doc,
   getDoc,
@@ -103,7 +104,6 @@ function ArticleDetail() {
   const saveNotes = async () => {
     if (notes && canEdit) {
       try {
-        setSaving(true); // Indicate saving process
         const articleRef = doc(db, "articles", id);
         await updateDoc(articleRef, {
           note: notes,
@@ -149,6 +149,10 @@ function ArticleDetail() {
     }
   }, [id, tags, title, isPublic, status]);
 
+  const debouncedSaveNotes = useDebouncedCallback(() => {
+    setSaving(true);
+    saveNotes();
+  }, 1000); // Save notes with a 1-second debounce delay
   if (loading) {
     return <Loading loading="Loading ..." />;
   }
@@ -185,7 +189,7 @@ function ArticleDetail() {
             setTags={setTags}
             createdAt={createdAt}
             showSummary={showSummary}
-            saveNotes={saveNotes}
+            saveNotes={debouncedSaveNotes}
             setShowSummary={setShowSummary}
             relatedArticles={relatedArticles}
             canEdit={canEdit}

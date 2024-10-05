@@ -18,6 +18,7 @@ import ErrorComponent from "../components/Error";
 import ArticleCard from "../components/ArticleList/ArticleCard";
 import SearchBar from "../components/ArticleList/SearchBar";
 import FilterMenu from "../components/ArticleList/FilterMenu";
+import ShareModal from "../components/ArticleList/ShareModal";
 import { motion } from "framer-motion";
 
 function ArticleList() {
@@ -39,6 +40,17 @@ function ArticleList() {
 
   // State to track the context menu visibility
   const [contextMenu, setContextMenu] = useState(null);
+
+  // State for share modal
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLink, setShareLink] = useState("");
+
+  // Function to open share modal
+  const handleShare = (articleId) => {
+    const fullUrl = `${window.location.origin}/articles/${articleId}`;
+    setShareLink(fullUrl);
+    setShowShareModal(true);
+  };
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -70,7 +82,7 @@ function ArticleList() {
             ...doc.data(),
           })),
           ...publicArticlesSnapshot.docs
-            .filter((doc) => doc.data().userid !== currentUser.uid) // Avoid duplicates
+            .filter((doc) => doc.data().userid !== currentUser.uid)
             .map((doc) => ({ id: doc.id, ...doc.data() })),
         ];
         setArticles(articlesData);
@@ -127,7 +139,6 @@ function ArticleList() {
     }
 
     // Filter by tags (article must include the tag)
-    //
     if (tagFilter) {
       filtered = filtered.filter((article) =>
         (article.tags || []).some(
@@ -142,7 +153,7 @@ function ArticleList() {
         case "title":
           return a.title.localeCompare(b.title);
         case "date":
-          return b.date.seconds - a.date.seconds; // Assuming date is a Firestore timestamp
+          return b.date.seconds - a.date.seconds;
         case "readingTime":
           return parseInt(a.read.words) - parseInt(b.read.words);
         default:
@@ -182,6 +193,11 @@ function ArticleList() {
     }
   };
 
+  // Function to filter by tag
+  const handleTagClick = (tag) => {
+    setTagFilter(tag);
+  };
+
   // Function to archive the article
   const archiveArticle = async (articleId, currentArchived) => {
     try {
@@ -194,7 +210,7 @@ function ArticleList() {
         // Check if the current user is the owner of the article
         if (articleData.userid !== currentUser.uid) {
           console.error("You do not have permission to archive this article.");
-          return; // Exit the function if the user is not the owner
+          return;
         }
 
         // Update the archive status
@@ -228,14 +244,14 @@ function ArticleList() {
         // Check if the current user is the owner of the article
         if (articleData.userid !== currentUser.uid) {
           console.error("You do not have permission to delete this article.");
-          return; // Exit the function if the user is not the owner
+          return;
         }
 
         // Copy the article data to the "trash" collection
-        const trashRef = doc(db, "trash", articleId); // Use the same ID for the trash document
+        const trashRef = doc(db, "trash", articleId);
         await setDoc(trashRef, {
           ...articleData,
-          trashedAt: new Date(), // Add a timestamp to indicate when it was moved to trash
+          trashedAt: new Date(),
         });
 
         // Delete the article from the "articles" collection
@@ -303,15 +319,14 @@ function ArticleList() {
             Found {filteredArticles.length} of {articles.length} articles
           </div>
         )}
-
       {/* Article List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredArticles.map((article, index) => (
           <motion.div
             key={article.id}
-            initial={{ opacity: 0, y: 60 }} // Start hidden and slightly shifted down
-            animate={{ opacity: 1, y: 0 }} // Animate to visible and original position
-            transition={{ duration: 0.4, delay: index * 0.1 }} // Stagger animations
+            initial={{ opacity: 0, y: 60 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
           >
             <ArticleCard
               article={article}
@@ -321,10 +336,32 @@ function ArticleList() {
               archiveArticle={archiveArticle}
               deleteArticle={deleteArticle}
               currentUser={currentUser}
+              handleShare={handleShare}
+              handleTagClick={handleTagClick} // Pass handleTagClick to ArticleCard
             />
           </motion.div>
         ))}
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        show={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        shareLink={shareLink}
+        generateShareUrl={(platform) => {
+          const encodedLink = encodeURIComponent(shareLink);
+          switch (platform) {
+            case "facebook":
+              return `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`;
+            case "twitter":
+              return `https://twitter.com/intent/tweet?url=${encodedLink}`;
+            case "email":
+              return `mailto:?subject=Check%20this%20out&body=${encodedLink}`;
+            default:
+              return "";
+          }
+        }}
+      />
     </div>
   );
 }

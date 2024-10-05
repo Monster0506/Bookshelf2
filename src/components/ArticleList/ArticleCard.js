@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { FaEllipsisV } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-import ShareModal from "./ShareModal";
 import "../../css/ArticleCard.css"; // Custom CSS for additional animations
 
 function ArticleCard({
@@ -13,55 +12,20 @@ function ArticleCard({
   archiveArticle,
   deleteArticle,
   currentUser,
+  handleShare,
+  handleTagClick,
 }) {
-  const [shareLink, setShareLink] = useState("");
-  const [showShareModal, setShowShareModal] = useState(false);
-
-  useEffect(() => {
-    const fullUrl = `${window.location.origin}/articles/${article.id}`;
-    setShareLink(fullUrl);
-  }, [article.id]);
-
-  const handleShare = () => {
-    setShowShareModal(true);
-  };
-
-  const generateShareUrl = (platform) => {
-    const encodedLink = encodeURIComponent(shareLink);
-    switch (platform) {
-      case "facebook":
-        return `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`;
-      case "twitter":
-        return `https://twitter.com/intent/tweet?url=${encodedLink}`;
-      case "email":
-        return `mailto:?subject=Check%20this%20out&body=${encodedLink}`;
-      default:
-        return "";
-    }
-  };
-
   return (
-    <>
-      {/* Share Modal - moved outside the main card container */}
-      <ShareModal
-        show={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        shareLink={shareLink}
-        generateShareUrl={generateShareUrl}
-      />
-
-      <motion.div
-        key={article.id}
-        className="relative"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
-        <Link
-          to={`/articles/${article.id}`}
-          className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
-        >
+    <motion.div
+      key={article.id}
+      className="relative p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
+      <div>
+        <Link to={`/articles/${article.id}`}>
           <motion.h2
             className="text-2xl font-semibold mb-2 text-gray-800"
             whileHover={{ x: 5 }}
@@ -70,111 +34,115 @@ function ArticleCard({
             {article.title}
           </motion.h2>
           <p className="text-sm text-gray-500 mb-4">{article.source}</p>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {article.tags &&
-              article.tags.map((tag, index) => (
-                <motion.span
-                  key={index}
-                  className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full"
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {tag}
-                </motion.span>
-              ))}
-          </div>
-
-          <div className="text-gray-600 mb-2">
-            <p className="mb-1">
-              Reading Time:{" "}
-              <span className="font-medium">
-                {article.read.minutes || "N/A"}
-              </span>
-            </p>
-          </div>
         </Link>
+      </div>
 
-        {/* Context Menu with Animation */}
-        <div className="absolute top-2 right-2">
-          <div className="relative inline-block text-left">
-            <motion.button
-              className="inline-flex justify-center w-full p-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors duration-200 ease-in-out"
-              aria-haspopup="true"
-              aria-expanded="true"
+      <div className="flex flex-wrap gap-2 mb-4">
+        {article.tags &&
+          article.tags.map((tag, index) => (
+            <motion.span
+              key={index}
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full cursor-pointer"
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
               onClick={(e) => {
-                e.stopPropagation(); // Prevent link navigation
-                handleContextMenuToggle(article.id);
+                e.stopPropagation();
+                handleTagClick(tag);
               }}
-              animate={{ rotate: contextMenu === article.id ? 90 : 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              whileHover={{ rotate: contextMenu === article.id ? 90 : 15 }}
             >
-              <FaEllipsisV />
-            </motion.button>
-            <AnimatePresence>
-              {contextMenu === article.id && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+              {tag}
+            </motion.span>
+          ))}
+      </div>
+
+      <div className="text-gray-600 mb-2">
+        <Link to={`/articles/${article.id}`}>
+          <p className="mb-1">
+            Reading Time:{" "}
+            <span className="font-medium">{article.read.minutes || "N/A"}</span>
+          </p>
+        </Link>
+      </div>
+
+      {/* Context Menu with Animation */}
+      <div className="absolute top-2 right-2">
+        <div className="relative inline-block text-left">
+          <motion.button
+            className="inline-flex justify-center w-full p-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors duration-200 ease-in-out"
+            aria-haspopup="true"
+            aria-expanded="true"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleContextMenuToggle(article.id);
+            }}
+            animate={{ rotate: contextMenu === article.id ? 90 : 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            whileHover={{ rotate: contextMenu === article.id ? 90 : 15 }}
+          >
+            <FaEllipsisV />
+          </motion.button>
+          <AnimatePresence>
+            {contextMenu === article.id && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+              >
+                <div
+                  className="py-1"
+                  role="menu"
+                  aria-orientation="vertical"
+                  aria-labelledby="options-menu"
                 >
-                  <div
-                    className="py-1"
-                    role="menu"
-                    aria-orientation="vertical"
-                    aria-labelledby="options-menu"
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleArticleStatus(article.id, article.status);
+                    }}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
                   >
+                    {article.status === "UNREAD"
+                      ? "Mark as Read"
+                      : "Mark as Unread"}
+                  </button>
+                  {article.userid === currentUser.uid && (
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevent link navigation
-                        toggleArticleStatus(article.id, article.status);
+                        e.stopPropagation();
+                        archiveArticle(article.id, article.archived);
                       }}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
                     >
-                      {article.status === "UNREAD"
-                        ? "Mark as Read"
-                        : "Mark as Unread"}
+                      {article.archived ? "Unarchive" : "Archive"}
                     </button>
-                    {article.userid === currentUser.uid && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent link navigation
-                          archiveArticle(article.id, article.archived);
-                        }}
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
-                      >
-                        {article.archived ? "Unarchive" : "Archive"}
-                      </button>
-                    )}
+                  )}
+                  <button
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
+                    type="button"
+                    onClick={() => handleShare(article.id)}
+                  >
+                    Share
+                  </button>
+                  {article.userid === currentUser.uid && (
                     <button
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
-                      type="button"
-                      onClick={handleShare}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteArticle(article.id);
+                      }}
+                      className="block px-4 py-2 text-sm text-red-700 hover:bg-red-100 transition-colors duration-200 ease-in-out w-full text-left"
                     >
-                      Share
+                      Delete
                     </button>
-                    {article.userid === currentUser.uid && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent link navigation
-                          deleteArticle(article.id);
-                        }}
-                        className="block px-4 py-2 text-sm text-red-700 hover:bg-red-100 transition-colors duration-200 ease-in-out w-full text-left"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </motion.div>
-    </>
+      </div>
+    </motion.div>
   );
 }
 

@@ -1,20 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
 import { FaFacebookF, FaTwitter, FaEnvelope, FaCopy } from "react-icons/fa";
 import { CSSTransition } from "react-transition-group";
 import "../../css/ShareModal.css"; // Custom CSS for additional animations
 
 function ShareModal({ show, onClose, shareLink, generateShareUrl }) {
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareLink);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
   return (
     <CSSTransition in={show} timeout={300} classNames="modal" unmountOnExit>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-300 ease-in-out">
-        {/* Modal Container */}
         <div className="bg-white p-8 rounded-lg shadow-2xl transform transition-transform duration-500 ease-out max-w-md w-full scale-95 hover:scale-100">
-          {/* Header */}
           <h2 className="text-2xl font-bold text-center mb-6 animate-bounce">
             Share this Article
           </h2>
 
-          {/* Link Input Section */}
           <div className="mb-6">
             <div className="flex items-center border rounded-lg overflow-hidden">
               <input
@@ -24,15 +29,19 @@ function ShareModal({ show, onClose, shareLink, generateShareUrl }) {
                 className="w-full p-3 text-gray-700 outline-none transition-colors duration-300 focus:bg-gray-100"
               />
               <button
-                onClick={() => navigator.clipboard.writeText(shareLink)}
+                onClick={handleCopy}
                 className="px-4 py-3 bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-300 flex items-center"
               >
                 <FaCopy />
               </button>
             </div>
+            {copySuccess && (
+              <p className="mt-2 text-green-600 text-center transition-opacity duration-300">
+                Link copied to clipboard!
+              </p>
+            )}
           </div>
 
-          {/* Share Buttons */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-center mb-4">
               Share on Social Media
@@ -65,7 +74,6 @@ function ShareModal({ show, onClose, shareLink, generateShareUrl }) {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="flex justify-center">
             <button
               onClick={onClose}
