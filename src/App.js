@@ -14,7 +14,7 @@ import TrashView from "./pages/TrashView";
 import Navbar from "./components/Navbar";
 import AddArticle from "./pages/AddArticle";
 import ArticleList from "./pages/ArticleList"; // Import the ArticleList component
-import ArticleGraph from "./components/ArticleGraph";
+import ArticleGraph from "./pages/ArticleGraph";
 
 function App() {
   return (

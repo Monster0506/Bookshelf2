@@ -1,5 +1,7 @@
 // utils/articleUtils.js
 import nlp from "compromise";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebaseConfig";
 
 /**
  * Tokenizes the content using compromise and removes stop words.
@@ -114,4 +116,21 @@ export const findRelatedArticles = (targetArticle, articles, topN = 5) => {
     sortedSimilarities.map((item) => item.similarity),
     sortedSimilarities.map((item) => item.article),
   ];
+};
+
+// Utility function to fetch articles for the current user
+export const fetchUserArticles = async (currentUser) => {
+  if (!currentUser) return [];
+
+  try {
+    const articlesSnapshot = await getDocs(collection(db, "articles"));
+    const articlesData = articlesSnapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((article) => article.userid === currentUser.uid);
+
+    return articlesData;
+  } catch (error) {
+    console.error("Error fetching articles:", error);
+    return [];
+  }
 };

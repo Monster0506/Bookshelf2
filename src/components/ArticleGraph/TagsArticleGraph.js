@@ -1,35 +1,25 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { Network } from "vis-network";
 import { DataSet } from "vis-data";
-import { db } from "../firebaseConfig";
-import { collection, getDocs } from "firebase/firestore";
+import { fetchUserArticles } from "../../utils/articleUtils"; // Import the utility function
 import { useNavigate } from "react-router-dom";
 
-function TagsArticleGraph() {
+const TagsArticleGraph = () => {
   const { currentUser } = useAuth();
   const [articles, setArticles] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchArticles = async () => {
-      try {
-        const articlesSnapshot = await getDocs(collection(db, "articles"));
-        const articlesData = articlesSnapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((article) => article.userid === currentUser.uid);
-
-        setArticles(articlesData);
-        createGraph(articlesData);
-      } catch (error) {
-        console.error("Error fetching articles:", error);
-      }
+      const articlesData = await fetchUserArticles(currentUser);
+      setArticles(articlesData);
+      createGraph(articlesData);
     };
 
-    if (currentUser) {
-      fetchArticles();
-    }
+    fetchArticles();
   }, [currentUser]);
+
   const getRandomColor = () => {
     const r = Math.floor(Math.random() * 256);
     const g = Math.floor(Math.random() * 256);
@@ -37,16 +27,12 @@ function TagsArticleGraph() {
     return `rgb(${r}, ${g}, ${b})`;
   };
 
-  // Usage
-
-  // Generate a color based on a string (tag)
   const generateColorFromTag = (tag) => {
     let hash = 0;
     for (let i = 0; i < tag.length; i++) {
       hash = tag.charCodeAt(i) + ((hash << 5) - hash);
     }
 
-    // Convert hash to an RGB color
     const r = (hash >> 24) & 0xff;
     const g = (hash >> 16) & 0xff;
     const b = (hash >> 8) & 0xff;
@@ -54,7 +40,6 @@ function TagsArticleGraph() {
     return `rgb(${Math.abs(r)}, ${Math.abs(g)}, ${Math.abs(b)})`;
   };
 
-  // Create a map of tags to colors
   const createTagColorMap = (articles) => {
     const tagColorMap = {};
     articles.forEach((article) => {
@@ -72,15 +57,10 @@ function TagsArticleGraph() {
   const createGraph = (articles) => {
     const nodes = [];
     const edges = [];
-
-    // Create a tag color map
     const tagColorMap = createTagColorMap(articles);
 
-    // Create nodes for each article
     articles.forEach((article) => {
-      // check if the article has no real tags ([""]) or no tags ([])
       if (Array.isArray(article.tags) && article.tags.length > 0) {
-        console.log(article.tags);
         nodes.push({
           id: article.id,
           label: article.title,
@@ -90,7 +70,6 @@ function TagsArticleGraph() {
       }
     });
 
-    // Create edges based on shared tags and assign color based on tags
     for (let i = 0; i < articles.length; i++) {
       for (let j = i + 1; j < articles.length; j++) {
         if (articles[i].tags) {
@@ -99,27 +78,23 @@ function TagsArticleGraph() {
           );
 
           if (sharedTags.length > 0) {
-            // Use the first shared tag to determine edge color
             const edgeColor = tagColorMap[sharedTags[0]] || "#848484";
-
             edges.push({
               from: articles[i].id,
               to: articles[j].id,
               label: sharedTags.join(", "),
-              color: { color: edgeColor }, // Set the edge color
+              color: { color: edgeColor },
             });
           }
         }
       }
     }
 
-    // Create the network data
     const data = {
       nodes: new DataSet(nodes),
       edges: new DataSet(edges),
     };
 
-    // Initialize the network
     const container = document.getElementById("article-network");
     const options = {
       nodes: {
@@ -176,13 +151,12 @@ function TagsArticleGraph() {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4">Articles Graph by Tags</h2>
       <div
         id="article-network"
         style={{ height: "600px", border: "1px solid #ddd" }}
       ></div>
     </div>
   );
-}
+};
 
 export default TagsArticleGraph;
