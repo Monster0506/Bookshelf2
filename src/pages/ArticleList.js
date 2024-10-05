@@ -18,6 +18,7 @@ import ErrorComponent from "../components/Error";
 import ArticleCard from "../components/ArticleList/ArticleCard";
 import SearchBar from "../components/ArticleList/SearchBar";
 import FilterMenu from "../components/ArticleList/FilterMenu";
+import { motion } from "framer-motion";
 
 function ArticleList() {
   const { currentUser } = useAuth();
@@ -268,7 +269,6 @@ function ArticleList() {
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Articles</h1>
-
       {/* Search Bar and Filter Button */}
       <div className="flex items-center mb-4">
         <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
@@ -279,7 +279,6 @@ function ArticleList() {
           <FaFilter />
         </button>
       </div>
-
       {/* Filter Menu */}
       {showFilterMenu && (
         <FilterMenu
@@ -297,20 +296,33 @@ function ArticleList() {
           setSortOption={setSortOption}
         />
       )}
+      {/* Results Found Section */}
+      {filteredArticles.length !== 0 &&
+        filteredArticles.length !== articles.length && (
+          <div className="mb-4 text-gray-700">
+            Found {filteredArticles.length} of {articles.length} articles
+          </div>
+        )}
 
       {/* Article List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArticles.map((article) => (
-          <ArticleCard
+        {filteredArticles.map((article, index) => (
+          <motion.div
             key={article.id}
-            article={article}
-            handleContextMenuToggle={handleContextMenuToggle}
-            contextMenu={contextMenu}
-            toggleArticleStatus={toggleArticleStatus}
-            archiveArticle={archiveArticle}
-            deleteArticle={deleteArticle}
-            currentUser={currentUser}
-          />
+            initial={{ opacity: 0, y: 60 }} // Start hidden and slightly shifted down
+            animate={{ opacity: 1, y: 0 }} // Animate to visible and original position
+            transition={{ duration: 0.4, delay: index * 0.1 }} // Stagger animations
+          >
+            <ArticleCard
+              article={article}
+              handleContextMenuToggle={handleContextMenuToggle}
+              contextMenu={contextMenu}
+              toggleArticleStatus={toggleArticleStatus}
+              archiveArticle={archiveArticle}
+              deleteArticle={deleteArticle}
+              currentUser={currentUser}
+            />
+          </motion.div>
         ))}
       </div>
     </div>

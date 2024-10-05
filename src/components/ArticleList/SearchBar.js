@@ -8,12 +8,12 @@ function SearchBar({ searchQuery, setSearchQuery }) {
   return (
     <div
       className={`relative flex-grow transition-transform duration-300 transform ${
-        isFocused ? "scale-95" : ""
-      } hover:scale-95`}
+        isFocused ? "scale-101" : ""
+      } hover:scale-99`}
     >
       <FaSearch
-        className={`absolute left-3 top-2.5 text-gray-500 transition-transform duration-300 ${
-          isFocused ? "animate-bounce" : ""
+        className={`absolute left-3 top-2.5 transition-transform duration-300 ${
+          isFocused ? "animate-bounce text-blue-500" : "text-gray-500"
         }`}
       />
       <input

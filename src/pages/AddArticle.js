@@ -80,6 +80,7 @@ function AddArticle() {
       };
       let autoTags = [];
 
+      // URL Content Processing
       if (filetype === "URL") {
         try {
           const {
@@ -134,7 +135,6 @@ function AddArticle() {
         plaintext = extractedPlaintext;
         autoTags = generateTags(plaintext);
         articleSummary = await summarizeContent(plaintext);
-
         readInfo = {
           text: content,
           minutes: readingTime,
@@ -168,32 +168,32 @@ function AddArticle() {
 
   return (
     <motion.div
-      className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-100 to-purple-100"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
+      className="flex items-center justify-center min-h-screen bg-gradient-to-r from-indigo-50 to-indigo-200"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 2 }}
     >
       <motion.div
-        className="w-full max-w-lg p-8 space-y-6 bg-white rounded-2xl shadow-lg"
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 100, duration: 0.5 }}
+        className="w-full max-w-lg p-8 space-y-6 bg-white rounded-xl shadow-2xl"
+        initial={{ y: -50, rotate: -5, opacity: 0 }}
+        animate={{ y: 0, rotate: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 80, duration: 2 }}
       >
         <motion.h1
-          className="text-3xl font-bold text-center text-purple-700"
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.5 }}
+          className="text-3xl font-semibold text-center text-indigo-800"
+          initial={{ scale: 0.8, rotate: -5 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 1.5 }}
         >
-          Add Article
+          Add New Article
         </motion.h1>
         {error && (
           <motion.p
             className="text-red-500 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1 }}
           >
             {error}
           </motion.p>
@@ -201,37 +201,37 @@ function AddArticle() {
         {success && (
           <motion.p
             className="text-green-500 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1 }}
           >
             {success}
           </motion.p>
         )}
         <form onSubmit={handleAddArticle} className="space-y-4">
           <motion.div
-            initial={{ x: -100, opacity: 0 }}
+            initial={{ x: -50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 1.5 }}
           >
             <input
               type="text"
               placeholder="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               required
             />
           </motion.div>
           <motion.div
-            initial={{ x: 100, opacity: 0 }}
+            initial={{ x: 50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 1.5 }}
           >
             <select
               value={filetype}
               onChange={(e) => setFiletype(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               required
             >
               <option value="URL">URL</option>
@@ -240,9 +240,9 @@ function AddArticle() {
             </select>
           </motion.div>
           <motion.div
-            initial={{ x: -100, opacity: 0 }}
+            initial={{ x: -50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 1.5 }}
           >
             {filetype === "URL" ? (
               <input
@@ -250,7 +250,7 @@ function AddArticle() {
                 placeholder="Source (URL)"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required
               />
             ) : (
@@ -258,20 +258,20 @@ function AddArticle() {
                 type="file"
                 accept={filetype === "PDF" ? "application/pdf" : "text/html"}
                 onChange={handleFileChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required
               />
             )}
           </motion.div>
           <motion.div
-            initial={{ x: 100, opacity: 0 }}
+            initial={{ x: 50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 1.5 }}
           >
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               required
             >
               <option value="READ">READ</option>
@@ -279,29 +279,29 @@ function AddArticle() {
             </select>
           </motion.div>
           <motion.div
-            initial={{ x: -100, opacity: 0 }}
+            initial={{ x: -50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 1.5 }}
           >
             <input
               type="text"
               placeholder="Tags (comma-separated)"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </motion.div>
           <motion.div
             className="flex items-center"
-            initial={{ x: 100, opacity: 0 }}
+            initial={{ x: 50, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 1.5 }}
           >
             <input
               type="checkbox"
               checked={publicStatus}
               onChange={(e) => setPublicStatus(e.target.checked)}
-              className="mr-2 focus:ring-purple-500"
+              className="mr-2 focus:ring-indigo-500"
             />
             <label className="text-gray-700">Public</label>
           </motion.div>
@@ -310,11 +310,12 @@ function AddArticle() {
             className={`w-full py-3 text-white rounded-lg shadow-md transition-transform duration-300 ${
               isUploading
                 ? "bg-gray-500 cursor-not-allowed"
-                : "bg-purple-600 hover:bg-purple-700 transform hover:scale-105"
+                : "bg-indigo-600 hover:bg-indigo-700 transform hover:scale-105"
             }`}
             disabled={isUploading}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05, rotate: 2 }}
+            whileTap={{ scale: 0.95, rotate: -2 }}
+            transition={{ duration: 1.5 }}
           >
             {isUploading ? "Uploading..." : "Add Article"}
           </motion.button>

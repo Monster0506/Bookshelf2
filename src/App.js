@@ -65,7 +65,14 @@ function App() {
             }
           />{" "}
           <Route path="/articles/:id" element={<ArticleDetail />} />
-          <Route path="/graph" element={<ArticleGraph />} />
+          <Route
+            path="/graph"
+            element={
+              <ProtectedRoute>
+                <ArticleGraph />
+              </ProtectedRoute>
+            }
+          />
           {/* Add ArticleList route */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
