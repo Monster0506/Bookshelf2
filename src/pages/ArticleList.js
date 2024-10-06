@@ -153,11 +153,11 @@ function ArticleList() {
         case "title":
           return a.title.localeCompare(b.title);
         case "date":
-          return b.date.seconds - a.date.seconds;
+          return a.date.seconds - b.date.seconds;
         case "readingTime":
           return parseInt(a.read.words) - parseInt(b.read.words);
         default:
-          return 0;
+          return a.date.seconds - b.date.seconds;
       }
     });
 

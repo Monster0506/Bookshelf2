@@ -53,7 +53,9 @@ function ArticleDetail() {
           const articleData = articleSnapshot.data();
           setArticle(articleData);
           setTitle(articleData.title || "");
-          setTags((articleData.tags || []).join(", "));
+          setTags(
+            Array.isArray(articleData.tags) ? articleData.tags.join(", ") : "",
+          );
           setStatus(articleData.status || "UNREAD");
           setNotes(articleData.note || "");
           setCreatedAt(articleData.date);

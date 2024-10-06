@@ -38,7 +38,7 @@ function ArticleCard({
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        {article.tags &&
+        {Array.isArray(article.tags) &&
           article.tags.map((tag, index) => (
             <motion.span
               key={index}
