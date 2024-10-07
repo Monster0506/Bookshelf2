@@ -85,6 +85,8 @@ function ArticleList() {
             .filter((doc) => doc.data().userid !== currentUser.uid)
             .map((doc) => ({ id: doc.id, ...doc.data() })),
         ];
+
+        articlesData.sort((a, b) => b.date.toDate() - a.date.toDate());
         setArticles(articlesData);
         setFilteredArticles(articlesData);
       } catch (err) {
@@ -153,11 +155,11 @@ function ArticleList() {
         case "title":
           return a.title.localeCompare(b.title);
         case "date":
-          return a.date.seconds - b.date.seconds;
+          return b.date.toDate() - a.date.toDate();
         case "readingTime":
           return parseInt(a.read.words) - parseInt(b.read.words);
         default:
-          return a.date.seconds - b.date.seconds;
+          return b.date.toDate() - a.date.toDate();
       }
     });
 
