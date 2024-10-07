@@ -51,6 +51,7 @@ function ArticleDetail() {
 
         if (articleSnapshot.exists()) {
           const articleData = articleSnapshot.data();
+          articleData.id = articleSnapshot.id;
           setArticle(articleData);
           setTitle(articleData.title || "");
           setTags(

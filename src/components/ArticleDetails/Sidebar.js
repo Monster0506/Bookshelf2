@@ -52,10 +52,10 @@ function Sidebar({
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed top-0 right-0 h-fit w-80 bg-white shadow-lg p-6 lg:relative lg:static rounded-lg border"
+          className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl p-8 lg:relative lg:static rounded-l-lg border"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-gray-800">Metadata</h2>
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Metadata</h2>
             {canEdit && (
               <button
                 type="button"
@@ -63,18 +63,18 @@ function Sidebar({
                   setEditing(!editing);
                   if (editing) saveMetadata();
                 }}
-                className={`inline px-4 py-2 border ${
-                  editing ? "bg-green-500" : "bg-blue-500"
-                } text-white rounded-lg hover:opacity-80 transition duration-300`}
+                className={`inline px-5 py-2 font-semibold text-sm border rounded-lg transition-all duration-300 shadow-lg ${
+                  editing ? "bg-green-600" : "bg-blue-600"
+                } text-white hover:shadow-xl hover:opacity-90`}
               >
                 {editing ? "Save Changes" : "Edit Metadata"}
               </button>
             )}
           </div>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">
-              Tags:
+          <div className="mb-8">
+            <label className="block text-gray-800 mb-3 font-semibold text-lg">
+              Tags
             </label>
             {editing ? (
               <>
@@ -82,81 +82,91 @@ function Sidebar({
                   type="text"
                   value={tags}
                   onChange={(e) => handleMetadataChange("tags", e.target.value)}
-                  className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
                   placeholder="Add tags, separated by commas"
                 />
 
-                {/* Tag Suggestions Button */}
-                <div className="mt-2">
+                <div className="flex gap-4 mt-4">
+                  {/* Tag Suggestions Button */}
                   <button
                     onClick={() => setShowTagSuggestions(!showTagSuggestions)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                    className="px-5 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all"
                   >
                     Tag Suggestions
                   </button>
-                  {showTagSuggestions && (
-                    <div className="mt-2 p-2 bg-white border rounded shadow-lg max-h-40 overflow-y-auto">
-                      {tagSuggestions.map((suggestion, index) => (
-                        <div
-                          key={index}
-                          className="p-1 cursor-pointer hover:bg-gray-100"
-                          onClick={() => {
-                            appendTag(suggestion);
-                            setShowTagSuggestions(false);
-                          }}
-                        >
-                          {suggestion}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Auto Tag Suggestions Button */}
-                <div className="mt-2">
                   <button
                     onClick={() =>
                       setShowAutoTagSuggestions(!showAutoTagSuggestions)
                     }
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-all"
                   >
                     Auto Tag Suggestions
                   </button>
-                  {showAutoTagSuggestions && (
-                    <div className="mt-2 p-2 bg-white border rounded shadow-lg max-h-40 overflow-y-auto">
-                      {autoTagSuggestions.map((suggestion, index) => (
-                        <div
-                          key={index}
-                          className="p-1 cursor-pointer hover:bg-gray-100"
-                          onClick={() => {
-                            appendTag(suggestion);
-                            setShowAutoTagSuggestions(false);
-                          }}
-                        >
-                          {suggestion}
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
+
+                {/* Tag Suggestions List */}
+                {(showTagSuggestions || showAutoTagSuggestions) && (
+                  <div className="mt-6 p-4 bg-white border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                    {showTagSuggestions && (
+                      <div className="mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                          Tag Suggestions
+                        </h3>
+                        {tagSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
+                            onClick={() => {
+                              appendTag(suggestion);
+                              setShowTagSuggestions(false);
+                            }}
+                          >
+                            {suggestion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {showAutoTagSuggestions && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                          Auto Tag Suggestions
+                        </h3>
+                        {autoTagSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
+                            onClick={() => {
+                              appendTag(suggestion);
+                              setShowAutoTagSuggestions(false);
+                            }}
+                          >
+                            {suggestion}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {tags.split(",").map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full"
-                  >
-                    {tag.trim()}
-                  </span>
-                ))}
-              </div>
+              tags.trim() && (
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {tags.split(",").map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg"
+                    >
+                      {tag.trim()}
+                    </span>
+                  ))}
+                </div>
+              )
             )}
           </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">
-              Public Status:
+          <div className="mb-8">
+            <label className="block text-gray-800 mb-3 font-semibold text-lg">
+              Public Status
             </label>
             {editing ? (
               <select
@@ -164,14 +174,14 @@ function Sidebar({
                 onChange={(e) =>
                   handleMetadataChange("public", e.target.value === "Public")
                 }
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
               >
                 <option value="Public">Public</option>
                 <option value="Private">Private</option>
               </select>
             ) : (
               <span
-                className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
+                className={`inline-block px-4 py-2 text-sm font-medium rounded-full shadow ${
                   isPublic
                     ? "bg-green-100 text-green-600"
                     : "bg-gray-100 text-gray-600"
@@ -182,22 +192,22 @@ function Sidebar({
             )}
           </div>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">
-              Status:
+          <div className="mb-8">
+            <label className="block text-gray-800 mb-3 font-semibold text-lg">
+              Status
             </label>
             {editing ? (
               <select
                 value={status}
                 onChange={(e) => handleMetadataChange("status", e.target.value)}
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
               >
                 <option value="READ">Read</option>
                 <option value="UNREAD">Unread</option>
               </select>
             ) : (
               <span
-                className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${
+                className={`inline-block px-4 py-2 text-sm font-medium rounded-full shadow ${
                   status === "READ"
                     ? "bg-green-100 text-green-600"
                     : "bg-gray-100 text-gray-600"
@@ -208,9 +218,9 @@ function Sidebar({
             )}
           </div>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">
-              Source:
+          <div className="mb-8">
+            <label className="block text-gray-800 mb-3 font-semibold text-lg">
+              Source
             </label>
             <Link to={article.source} target="_blank" rel="noopener noreferrer">
               <p

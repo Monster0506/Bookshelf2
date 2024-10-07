@@ -18,7 +18,7 @@ function AddArticle() {
   const [publicStatus, setPublicStatus] = useState(false);
   const [source, setSource] = useState("");
   const [status, setStatus] = useState("UNREAD");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState([""]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [file, setFile] = useState(null);
@@ -168,7 +168,7 @@ function AddArticle() {
 
   return (
     <motion.div
-      className="flex items-center justify-center min-h-screen bg-gradient-to-r from-indigo-50 to-indigo-200"
+      className="flex items-center justify-center min-h-screen bg-white"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -181,7 +181,7 @@ function AddArticle() {
         transition={{ type: "spring", stiffness: 80, duration: 2 }}
       >
         <motion.h1
-          className="text-3xl font-semibold text-center text-indigo-800"
+          className="text-3xl font-semibold text-center text-blue-600"
           initial={{ scale: 0.8, rotate: -5 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ duration: 1.5 }}
@@ -200,7 +200,7 @@ function AddArticle() {
         )}
         {success && (
           <motion.p
-            className="text-green-500 text-center"
+            className="text-blue-500 text-center"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 1 }}
@@ -219,7 +219,7 @@ function AddArticle() {
               placeholder="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </motion.div>
@@ -231,7 +231,7 @@ function AddArticle() {
             <select
               value={filetype}
               onChange={(e) => setFiletype(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               required
             >
               <option value="URL">URL</option>
@@ -250,7 +250,7 @@ function AddArticle() {
                 placeholder="Source (URL)"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             ) : (
@@ -258,7 +258,7 @@ function AddArticle() {
                 type="file"
                 accept={filetype === "PDF" ? "application/pdf" : "text/html"}
                 onChange={handleFileChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             )}
@@ -271,7 +271,7 @@ function AddArticle() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               required
             >
               <option value="READ">READ</option>
@@ -287,8 +287,16 @@ function AddArticle() {
               type="text"
               placeholder="Tags (comma-separated)"
               value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => {
+                // create a list from the comma-separated string. Trim each one, or return an empty array.
+                const tagsList = e.target.value.split(",");
+                const tagsE = [];
+                for (const tag of tagsList) {
+                  tagsE.push(tag.trim());
+                }
+                setTags(tagsE);
+              }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </motion.div>
           <motion.div
@@ -301,7 +309,7 @@ function AddArticle() {
               type="checkbox"
               checked={publicStatus}
               onChange={(e) => setPublicStatus(e.target.checked)}
-              className="mr-2 focus:ring-indigo-500"
+              className="mr-2 focus:ring-blue-500"
             />
             <label className="text-gray-700">Public</label>
           </motion.div>
@@ -310,7 +318,7 @@ function AddArticle() {
             className={`w-full py-3 text-white rounded-lg shadow-md transition-transform duration-300 ${
               isUploading
                 ? "bg-gray-500 cursor-not-allowed"
-                : "bg-indigo-600 hover:bg-indigo-700 transform hover:scale-105"
+                : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
             }`}
             disabled={isUploading}
             whileHover={{ scale: 1.05, rotate: 2 }}

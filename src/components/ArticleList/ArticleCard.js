@@ -33,7 +33,11 @@ function ArticleCard({
           >
             {article.title}
           </motion.h2>
-          <p className="text-sm text-gray-500 mb-4">{article.source}</p>
+          <div className="mb-2 text-gray-500">
+            {article.source.length > 43
+              ? `${article.source.substring(0, 40)}...`
+              : article.source}
+          </div>
         </Link>
       </div>
 

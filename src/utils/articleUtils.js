@@ -28,9 +28,11 @@ export const termFrequency = (terms) => {
  */
 export const computeTFIDF = (articles) => {
   const documentTerms = articles.map((article) =>
-    tokenize(article.plaintext || ""),
+    tokenize(article.plaintext || article.title || ""),
   );
+
   const documentTermFreqs = documentTerms.map((terms) => termFrequency(terms));
+
   const documentCount = documentTerms.length;
 
   // Compute document frequency for each term
@@ -65,6 +67,7 @@ export const cosineSimilarity = (vectorA, vectorB) => {
     Object.keys(vectorA).length === 0 ||
     Object.keys(vectorB).length === 0
   ) {
+    console.log("Returning 0 due to empty vector");
     return 0;
   }
 
@@ -83,6 +86,12 @@ export const cosineSimilarity = (vectorA, vectorB) => {
     Object.values(vectorB).reduce((sum, val) => sum + val * val, 0),
   );
 
+  // Return 0 if either magnitude is 0 to prevent division by zero
+  if (magnitudeA === 0 || magnitudeB === 0) {
+    console.log("Returning 0 due to zero magnitude");
+    return 0;
+  }
+
   return dotProduct / (magnitudeA * magnitudeB);
 };
 
@@ -91,11 +100,26 @@ export const cosineSimilarity = (vectorA, vectorB) => {
  * @returns {Array} An array of objects where each contains the similarity score and the related article.
  */
 export const findRelatedArticles = (targetArticle, articles, topN = 5) => {
+  console.log("Finding related articles...");
+  console.log("Target article:", targetArticle);
+  console.log(targetArticle.id);
+
   const tfidfVectors = computeTFIDF(articles);
   const targetIndex = articles.findIndex(
     (article) => article.id === targetArticle.id,
   );
+
+  if (targetIndex === -1) {
+    console.log("Target article not found in articles list");
+    return [[], []];
+  }
+
   const targetVector = tfidfVectors[targetIndex];
+
+  if (!targetVector) {
+    console.log("Target vector is undefined");
+    return [[], []];
+  }
 
   // Compute similarities
   const similarities = articles

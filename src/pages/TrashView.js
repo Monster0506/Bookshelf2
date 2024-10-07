@@ -18,6 +18,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { motion } from "framer-motion";
 
 function TrashView() {
   const { currentUser } = useAuth(); // Assume this gives us the logged-in user's ID
@@ -147,11 +148,13 @@ function TrashView() {
   };
 
   if (loading) {
-    return <p>Loading trashed articles...</p>;
+    return (
+      <p className="animate-pulse text-gray-700">Loading trashed articles...</p>
+    );
   }
 
   if (error) {
-    return <p className="text-red-500">{error}</p>;
+    return <p className="text-red-500 animate-bounce">{error}</p>;
   }
 
   // Get the icon for the select/deselect all button
@@ -165,24 +168,38 @@ function TrashView() {
     );
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Trashed Articles</h1>
+    <motion.div
+      className="p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <h1 className="text-3xl font-bold mb-6 text-center">Trashed Articles</h1>
 
       {/* Header Bar for Bulk Actions and Select/Deselect All */}
-      <div className="flex items-center justify-between mb-4 p-2 bg-gray-100 rounded-lg shadow-md">
+      <motion.div
+        className="flex items-center justify-between mb-6 p-4 bg-gray-100 rounded-lg shadow-md relative z-50"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 100 }}
+      >
         {/* Dropdown Button */}
-        <div className="relative">
+        <div className="relative z-50">
           <button
             onClick={toggleDropdown}
-            className="text-lg flex items-center p-2 bg-white rounded border hover:bg-gray-50"
+            className="text-lg flex items-center p-3 bg-white rounded-lg border hover:bg-gray-50 shadow-lg transition-all"
           >
             {selectAllIcon}
             <FaCaretDown className="ml-2" />
           </button>
           {dropdownOpen && (
-            <div className="absolute mt-2 w-32 bg-white border rounded shadow-lg z-50">
-              {" "}
-              {/* Added z-50 here */}
+            <motion.div
+              className="absolute mt-2 w-36 bg-white border rounded-lg shadow-lg z-50 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
               <button
                 onClick={selectAll}
                 className="block w-full px-4 py-2 text-left hover:bg-gray-100"
@@ -195,37 +212,44 @@ function TrashView() {
               >
                 Select None
               </button>
-            </div>
+            </motion.div>
           )}
         </div>
 
         {selectedArticles.length > 0 && (
           <div className="flex gap-4">
-            <button
+            <motion.button
               onClick={bulkRestore}
-              className="px-4 py-2 bg-blue-500 text-white rounded flex items-center hover:bg-blue-600"
+              className="px-6 py-3 bg-blue-500 text-white rounded-lg flex items-center shadow-lg hover:bg-blue-600 transition-all"
+              whileHover={{ scale: 1.05 }}
             >
               <FaUndo className="mr-2" /> Restore Selected
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={bulkDelete}
-              className="px-4 py-2 bg-red-500 text-white rounded flex items-center hover:bg-red-600"
+              className="px-6 py-3 bg-red-500 text-white rounded-lg flex items-center shadow-lg hover:bg-red-600 transition-all"
+              whileHover={{ scale: 1.05 }}
             >
               <FaTrashAlt className="mr-2" /> Delete Selected
-            </button>
+            </motion.button>
           </div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative">
         {trashedArticles.map((article) => (
-          <div
+          <motion.div
             key={article.id}
-            className="p-6 bg-white border rounded-lg shadow-md relative"
+            className="p-6 bg-white border rounded-lg shadow-lg relative hover:shadow-2xl transition-shadow duration-300"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            whileHover={{ scale: 1.02 }}
           >
             {/* Title and Checkbox Container */}
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-semibold">{article.title}</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-semibold text-gray-800">
+                {article.title}
+              </h2>
               {/* Checkbox for selection */}
               <input
                 type="checkbox"
@@ -235,27 +259,31 @@ function TrashView() {
               />
             </div>
 
-            <p className="text-sm text-gray-500 mb-4">{article.source}</p>
+            <p className="text-sm text-gray-500 mb-4 italic">
+              {article.source}
+            </p>
 
             {/* Restore and Delete Actions */}
-            <div className="flex gap-2">
-              <button
+            <div className="flex gap-3 mt-4">
+              <motion.button
                 onClick={() => restoreArticle(article.id, article)}
-                className={`px-4 py-2 rounded flex items-center bg-blue-500 text-white hover:bg-blue-600`}
+                className={`px-5 py-2 rounded-lg flex items-center bg-blue-500 text-white hover:bg-blue-600 shadow-md transition-all`}
+                whileHover={{ scale: 1.05 }}
               >
                 <FaUndo className="mr-2" /> Restore
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => permanentlyDeleteArticle(article.id)}
-                className={`px-4 py-2 rounded flex items-center bg-red-500 text-white hover:bg-red-600`}
+                className={`px-5 py-2 rounded-lg flex items-center bg-red-500 text-white hover:bg-red-600 shadow-md transition-all`}
+                whileHover={{ scale: 1.05 }}
               >
                 <FaTrashAlt className="mr-2" /> Delete
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
