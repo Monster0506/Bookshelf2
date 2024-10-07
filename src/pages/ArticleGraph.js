@@ -10,7 +10,7 @@ const ArticleGraph = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 bg-gray-100 h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Toggle Button */}
         <div className="flex justify-center mb-6">
@@ -25,20 +25,24 @@ const ArticleGraph = () => {
         </div>
 
         {/* Graph Container */}
-        <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="bg-white p-4 rounded-lg shadow-md h-full">
           {showSimilarityGraph ? (
             <div>
               <h2 className="text-3xl font-semibold mb-4 text-center text-gray-800">
                 Articles Graph by Similarity
               </h2>
-              <SimilarityArticleGraph />
+              <div>
+                <SimilarityArticleGraph />
+              </div>
             </div>
           ) : (
             <div>
               <h2 className="text-3xl font-semibold mb-4 text-center text-gray-800">
                 Articles Graph by Tags
               </h2>
-              <TagsArticleGraph />
+              <div>
+                <TagsArticleGraph />
+              </div>
             </div>
           )}
         </div>

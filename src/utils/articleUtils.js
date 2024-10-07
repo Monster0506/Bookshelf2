@@ -100,10 +100,6 @@ export const cosineSimilarity = (vectorA, vectorB) => {
  * @returns {Array} An array of objects where each contains the similarity score and the related article.
  */
 export const findRelatedArticles = (targetArticle, articles, topN = 5) => {
-  console.log("Finding related articles...");
-  console.log("Target article:", targetArticle);
-  console.log(targetArticle.id);
-
   const tfidfVectors = computeTFIDF(articles);
   const targetIndex = articles.findIndex(
     (article) => article.id === targetArticle.id,

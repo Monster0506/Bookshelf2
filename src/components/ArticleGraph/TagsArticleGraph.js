@@ -4,6 +4,7 @@ import { Network } from "vis-network";
 import { DataSet } from "vis-data";
 import { fetchUserArticles } from "../../utils/articleUtils"; // Import the utility function
 import { useNavigate } from "react-router-dom";
+import options from "../../utils/graphOptions";
 
 const TagsArticleGraph = () => {
   const { currentUser } = useAuth();
@@ -96,49 +97,6 @@ const TagsArticleGraph = () => {
     };
 
     const container = document.getElementById("article-network");
-    const options = {
-      nodes: {
-        shape: "dot",
-        size: 16,
-        font: {
-          color: "#343434",
-        },
-      },
-      edges: {
-        arrows: {
-          to: { enabled: true, scaleFactor: 0.5 },
-        },
-        smooth: {
-          type: "dynamic",
-        },
-      },
-      physics: {
-        enabled: true,
-        solver: "forceAtlas2Based",
-        forceAtlas2Based: {
-          gravitationalConstant: -30,
-          centralGravity: 0.005,
-          springLength: 130,
-          springConstant: 0.1,
-        },
-        maxVelocity: 50,
-        minVelocity: 0.1,
-        timestep: 0.5,
-        stabilization: {
-          enabled: true,
-          iterations: 1000,
-          updateInterval: 50,
-          onlyDynamicEdges: false,
-          fit: true,
-        },
-      },
-      interaction: {
-        tooltipDelay: 200,
-        hideEdgesOnDrag: false,
-        hover: true,
-      },
-    };
-
     const network = new Network(container, data, options);
 
     network.on("click", (params) => {
@@ -154,7 +112,7 @@ const TagsArticleGraph = () => {
       <div
         id="article-network"
         style={{ height: "600px", border: "1px solid #ddd" }}
-      ></div>
+      />
     </div>
   );
 };
