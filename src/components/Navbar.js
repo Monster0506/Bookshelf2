@@ -39,23 +39,29 @@ function Navbar() {
   return (
     <nav className="p-4 bg-gray-800 text-white">
       <div className="container mx-auto flex justify-between items-center">
-        <Link to="/">
+        <Link to="/" className="flex items-center">
+          <img
+            src="/bookshelf.png"
+            alt="Bookshelf Logo"
+            className="w-10 h-10 mr-2"
+          />
           <h1 className="text-xl">Bookshelf</h1>
         </Link>
+
         {currentUser ? (
           <div className="flex items-center">
-            <a href="/add-article" className="mr-4 flex items-center">
+            <Link to="/add-article" className="mr-4 flex items-center">
               <FaPlus className="mr-2" /> Add Article
-            </a>
-            <a href="/" className="mr-4 flex items-center">
+            </Link>
+            <Link to="/" className="mr-4 flex items-center">
               <FaBook className="mr-2" />
-            </a>
-            <a href="/trash" className="mr-4 flex items-center">
+            </Link>
+            <Link to="/trash" className="mr-4 flex items-center">
               <FaTrash className="mr-2" />
-            </a>
-            <a href="/graph" className="mr-4 flex items-center">
+            </Link>
+            <Link to="/graph" className="mr-4 flex items-center">
               <FaProjectDiagram className="mr-2" />
-            </a>
+            </Link>
 
             {/* Profile Dropdown */}
             <div className="relative">
@@ -68,12 +74,12 @@ function Navbar() {
               </button>
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded shadow-md z-10">
-                  <a
-                    href="/profile"
+                  <Link
+                    to="/profile"
                     className="block px-4 py-2 hover:bg-gray-100"
                   >
                     Profile
-                  </a>
+                  </Link>
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -87,10 +93,10 @@ function Navbar() {
           </div>
         ) : (
           <div>
-            <a href="/login" className="mr-4">
+            <Link to="/login" className="mr-4">
               Login
-            </a>
-            <a href="/signup">Signup</a>
+            </Link>
+            <Link to="/signup">Signup</Link>
           </div>
         )}
       </div>
