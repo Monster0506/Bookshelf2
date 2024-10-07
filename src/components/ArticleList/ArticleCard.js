@@ -15,29 +15,51 @@ function ArticleCard({
   handleShare,
   handleTagClick,
 }) {
+  // Calculate if the article is new (e.g., added within the last 7 days)
+  const isNew = () => {
+    const articleDate = article.date.toDate();
+    const today = new Date();
+    const diffTime = Math.abs(today - articleDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 2;
+  };
+
   return (
     <motion.div
       key={article.id}
-      className="relative p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
+      className={`relative p-6 border border-gray-200 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-500 ease-in-out ${
+        article.status === "READ" ? "bg-gray-100" : "bg-white"
+      }`}
+      initial={{ opacity: 0, y: 30, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 30, scale: 0.9 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      whileHover={{ scale: 1.03 }}
     >
+      {isNew() && (
+        <div className="absolute top-0 left-0 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-br-lg">
+          New
+        </div>
+      )}
+
       <div>
         <Link to={`/articles/${article.id}`}>
           <motion.h2
             className="text-2xl font-semibold mb-2 text-gray-800"
-            whileHover={{ x: 5 }}
-            transition={{ duration: 0.3 }}
+            whileHover={{ x: 10 }}
+            transition={{ duration: 0.4 }}
           >
             {article.title}
           </motion.h2>
-          <div className="mb-2 text-gray-500">
+          <motion.div
+            className="mb-2 text-gray-500 truncate"
+            whileHover={{ color: "#1E90FF" }}
+            transition={{ duration: 0.4 }}
+          >
             {article.source.length > 43
               ? `${article.source.substring(0, 40)}...`
               : article.source}
-          </div>
+          </motion.div>
         </Link>
       </div>
 
@@ -46,9 +68,9 @@ function ArticleCard({
           article.tags.map((tag, index) => (
             <motion.span
               key={index}
-              className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full cursor-pointer"
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.2 }}
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded-full cursor-pointer shadow-md"
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.3 }}
               onClick={(e) => {
                 e.stopPropagation();
                 handleTagClick(tag);
@@ -61,10 +83,14 @@ function ArticleCard({
 
       <div className="text-gray-600 mb-2">
         <Link to={`/articles/${article.id}`}>
-          <p className="mb-1">
+          <motion.p
+            className="mb-1"
+            whileHover={{ x: 5 }}
+            transition={{ duration: 0.3 }}
+          >
             Reading Time:{" "}
             <span className="font-medium">{article.read.minutes || "N/A"}</span>
-          </p>
+          </motion.p>
         </Link>
       </div>
 
@@ -80,19 +106,19 @@ function ArticleCard({
               handleContextMenuToggle(article.id);
             }}
             animate={{ rotate: contextMenu === article.id ? 90 : 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            whileHover={{ rotate: contextMenu === article.id ? 90 : 15 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            whileHover={{ rotate: contextMenu === article.id ? 90 : 20 }}
           >
             <FaEllipsisV />
           </motion.button>
           <AnimatePresence>
             {contextMenu === article.id && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                initial={{ opacity: 0, scale: 0.9, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
+                className="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
               >
                 <div
                   className="py-1"
