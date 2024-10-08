@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { addArticle } from "../utils/firestoreUtils";
+import {
+  addArticle,
+  fetchUserFolders,
+  updateFolderWithArticle,
+} from "../utils/firestoreUtils";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "../firebaseConfig";
 import {
@@ -23,6 +27,14 @@ function AddArticle() {
   const [success, setSuccess] = useState("");
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState("");
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchUserFolders(currentUser.uid).then((data) => setFolders(data));
+    }
+  }, [currentUser]);
 
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
@@ -143,8 +155,9 @@ function AddArticle() {
         };
         sourceURL = await uploadFileToStorage();
       }
-
-      await addArticle({
+      const folderName =
+        folders.find((folder) => folder.id === selectedFolder)?.name || "";
+      const articleRef = await addArticle({
         title,
         filetype,
         public: publicStatus,
@@ -158,7 +171,14 @@ function AddArticle() {
         plaintext,
         read: readInfo,
         summary: articleSummary,
+        folderId: selectedFolder, // Add folder ID to the article
+        folderName,
       });
+
+      // Update folder with the new article ID if a folder is selected
+      if (selectedFolder) {
+        await updateFolderWithArticle(selectedFolder, articleRef.id);
+      }
 
       setSuccess("Article added successfully!");
     } catch (error) {
@@ -288,7 +308,6 @@ function AddArticle() {
               placeholder="Tags (comma-separated)"
               value={tags}
               onChange={(e) => {
-                // create a list from the comma-separated string. Trim each one, or return an empty array.
                 const tagsList = e.target.value.split(",");
                 const tagsE = [];
                 for (const tag of tagsList) {
@@ -312,6 +331,29 @@ function AddArticle() {
               className="mr-2 focus:ring-blue-500"
             />
             <label className="text-gray-700">Public</label>
+          </motion.div>
+          <motion.div
+            className="mb-4"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 1.5 }}
+          >
+            <label className="block text-lg font-semibold mb-2">
+              Select Folder
+            </label>
+            <motion.select
+              value={selectedFolder}
+              onChange={(e) => setSelectedFolder(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-transform duration-300 ease-in-out hover:scale-105"
+              whileHover={{ scale: 1.05 }}
+            >
+              <option value="">No Folder</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </motion.select>
           </motion.div>
           <motion.button
             type="submit"

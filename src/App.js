@@ -15,6 +15,8 @@ import Navbar from "./components/Navbar";
 import AddArticle from "./pages/AddArticle";
 import ArticleList from "./pages/ArticleList"; // Import the ArticleList component
 import ArticleGraph from "./pages/ArticleGraph";
+import FolderList from "./components/FolderList";
+import FolderView from "./pages/FolderView";
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
             }
           />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/folders/:id" element={<FolderView />} />
+          <Route path="/folders" element={<FolderList />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/profile"

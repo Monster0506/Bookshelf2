@@ -63,6 +63,18 @@ function ArticleCard({
         </Link>
       </div>
 
+      {article.folderId && (
+        <div className="text-sm text-gray-600 mb-2">
+          <span>Folder: </span>
+          <Link
+            to={`/folders/${article.folderId}`}
+            className="text-blue-500 hover:underline"
+          >
+            {article.folderName || "Unknown Folder"}
+          </Link>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2 mb-4">
         {Array.isArray(article.tags) &&
           article.tags.map((tag, index) => (
