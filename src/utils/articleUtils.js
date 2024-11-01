@@ -124,7 +124,7 @@ export const findRelatedArticles = (targetArticle, articles, topN = 5) => {
       const similarity = cosineSimilarity(targetVector, tfidfVectors[index]);
       return { similarity, article };
     })
-    .filter((item) => item !== null); // Remove the null values
+    .filter((item) => item !== null && item.similarity >= 0.05); // Filter by 5% similarity threshold
 
   // Sort by similarity and return the top N with the related articles
   const sortedSimilarities = similarities

@@ -134,17 +134,11 @@ export const summarizeContent = (content, maxSentences = 3) => {
 
 export const fetchAndProcessContent = async (url) => {
   try {
-    const proxyUrl = "https://cors-anywhere-three-pied.vercel.app/api/";
-    const encodedUrl = encodeURIComponent(url);
-    const fullUrl = `${proxyUrl}${encodedUrl}`;
-    const urlObject = new URL(url);
-    const origin = urlObject.origin;
+    const proxyUrl = "https://cors-proxy.tjraklovits.workers.dev/api/";
+    const fullUrl = `${proxyUrl}${url}`;
 
     const response = await fetch(fullUrl, {
       method: "GET",
-      headers: {
-        Origin: origin,
-      },
     });
 
     if (!response.ok) {

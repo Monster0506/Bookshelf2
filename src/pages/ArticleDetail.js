@@ -94,9 +94,16 @@ function ArticleDetail() {
           ...doc.data(),
         }));
 
+        const filteredArticles = allArticles.filter((article) => {
+          return (
+            article.public ||
+            (currentUser && article.userid === currentUser.uid)
+          );
+        });
+
         const [similarityScores, related] = findRelatedArticles(
           currentArticle,
-          allArticles,
+          filteredArticles,
           5,
         );
         setRelatedArticles(
