@@ -138,17 +138,19 @@ function ArticleCard({
                   aria-orientation="vertical"
                   aria-labelledby="options-menu"
                 >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleArticleStatus(article.id, article.status);
-                    }}
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
-                  >
-                    {article.status === "UNREAD"
-                      ? "Mark as Read"
-                      : "Mark as Unread"}
-                  </button>
+                  {article.userid === currentUser.uid && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleArticleStatus(article.id, article.status);
+                      }}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200 ease-in-out w-full text-left"
+                    >
+                      {article.status === "UNREAD"
+                        ? "Mark as Read"
+                        : "Mark as Unread"}
+                    </button>
+                  )}
                   {article.userid === currentUser.uid && (
                     <button
                       onClick={(e) => {

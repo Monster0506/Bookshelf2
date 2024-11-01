@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaPlus } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  fetchUserFolders,
+  addFolder,
+  updateFolder,
+} from "../../utils/firestoreUtils";
 
 function Sidebar({
   article,
@@ -16,6 +21,10 @@ function Sidebar({
   setEditing,
   canEdit,
   tagSuggestions,
+  folderId,
+  setFolderId,
+  folderName,
+  setFolderName,
   autoTagSuggestions,
   showSidebar,
   setShowSidebar,
@@ -23,6 +32,24 @@ function Sidebar({
 }) {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showAutoTagSuggestions, setShowAutoTagSuggestions] = useState(false);
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState(article.folderId || "");
+  const [newFolderName, setNewFolderName] = useState("");
+
+  useEffect(() => {
+    const fetchFolders = async () => {
+      try {
+        const userFolders = await fetchUserFolders(article.userid);
+        setFolders(userFolders);
+      } catch (error) {
+        console.error("Failed to fetch folders", error);
+      }
+    };
+
+    if (article.userid) {
+      fetchFolders();
+    }
+  }, [article.userid]);
 
   const handleMetadataChange = (field, value) => {
     if (field === "tags") {
@@ -31,9 +58,9 @@ function Sidebar({
     }
     if (field === "status") setStatus(value);
     if (field === "public") setIsPublic(value);
+    if (field === "folderId") setSelectedFolder(value);
   };
 
-  // Function to append a tag to the tags input
   const appendTag = (tag) => {
     const currentTags = tags
       .split(",")
@@ -41,6 +68,19 @@ function Sidebar({
       .filter(Boolean);
     if (!currentTags.includes(tag)) {
       setTags([...currentTags, tag].join(", "));
+    }
+  };
+
+  const handleAddFolder = async () => {
+    if (newFolderName.trim() !== "") {
+      try {
+        await addFolder(newFolderName, article.userid, false);
+        const userFolders = await fetchUserFolders(article.userid);
+        setFolders(userFolders);
+        setNewFolderName("");
+      } catch (error) {
+        console.error("Failed to add folder", error);
+      }
     }
   };
 
@@ -61,7 +101,18 @@ function Sidebar({
                 type="button"
                 onClick={() => {
                   setEditing(!editing);
-                  if (editing) saveMetadata();
+                  if (editing) {
+                    setFolderId(selectedFolder);
+                    setFolderName(
+                      folders.find((folder) => folder.id === selectedFolder)
+                        ?.name || "",
+                    );
+                    saveMetadata();
+                    article.folderId = selectedFolder;
+                    article.folderName =
+                      folders.find((folder) => folder.id === selectedFolder)
+                        ?.name || "";
+                  }
                 }}
                 className={`inline px-5 py-2 font-semibold text-sm border rounded-lg transition-all duration-300 shadow-lg ${
                   editing ? "bg-green-600" : "bg-blue-600"
@@ -87,7 +138,6 @@ function Sidebar({
                 />
 
                 <div className="flex gap-4 mt-4">
-                  {/* Tag Suggestions Button */}
                   <button
                     onClick={() => setShowTagSuggestions(!showTagSuggestions)}
                     className="px-5 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all"
@@ -104,7 +154,6 @@ function Sidebar({
                   </button>
                 </div>
 
-                {/* Tag Suggestions List */}
                 {(showTagSuggestions || showAutoTagSuggestions) && (
                   <div className="mt-6 p-4 bg-white border rounded-lg shadow-xl max-h-60 overflow-y-auto">
                     {showTagSuggestions && (
@@ -164,6 +213,58 @@ function Sidebar({
               )
             )}
           </div>
+
+          <div className="mb-8">
+            <label className="block text-gray-800 mb-3 font-semibold text-lg">
+              Folder
+            </label>
+            {editing ? (
+              <>
+                <select
+                  value={selectedFolder}
+                  onChange={(e) =>
+                    handleMetadataChange("folderId", e.target.value)
+                  }
+                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                >
+                  <option value="">No Folder</option>
+                  {folders?.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-2 mt-4">
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                    placeholder="New Folder Name"
+                  />
+                  <button
+                    onClick={handleAddFolder}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all"
+                  >
+                    <FaPlus />
+                  </button>
+                </div>
+              </>
+            ) : (
+              selectedFolder && (
+                <span className="text-gray-800">
+                  <Link
+                    to={`/folders/${selectedFolder}`}
+                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                  >
+                    {folders.find((folder) => folder.id === selectedFolder)
+                      ?.name || "No Folder"}
+                  </Link>
+                </span>
+              )
+            )}
+          </div>
+
           <div className="mb-8">
             <label className="block text-gray-800 mb-3 font-semibold text-lg">
               Public Status

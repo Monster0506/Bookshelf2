@@ -9,6 +9,7 @@ import {
   updateFolder,
 } from "../utils/firestoreUtils";
 import { motion } from "framer-motion";
+import { FaLock, FaLockOpen } from "react-icons/fa";
 import "../css/FolderView.css";
 
 function FolderView() {
@@ -96,13 +97,19 @@ function FolderView() {
 
           {currentUser && (
             <div className="flex justify-center mb-8 space-x-4">
+              <div className="flex items-center space-x-2">
+                {folder?.public ? (
+                  <FaLockOpen className="text-green-500 text-2xl" />
+                ) : (
+                  <FaLock className="text-gray-500 text-2xl" />
+                )}
+                <span className="text-lg font-semibold text-gray-700">
+                  {folder?.public ? "Public" : "Private"}
+                </span>
+              </div>
               <button
                 onClick={handleUpdateFolderPrivacy}
-                className={`px-6 py-3 rounded-md text-white transition-all duration-300 ${
-                  folder?.public
-                    ? "bg-green-500 hover:bg-green-600"
-                    : "bg-gray-500 hover:bg-gray-600"
-                }`}
+                className="px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-all duration-300"
               >
                 {folder?.public ? "Make Private" : "Make Public"}
               </button>
@@ -129,7 +136,6 @@ function FolderView() {
                   <h4 className="text-lg font-bold text-gray-800 mb-2">
                     {article.title}
                   </h4>
-                  <p className="text-gray-600">Click to read more</p>
                   {currentUser && (
                     <button
                       onClick={(e) => {

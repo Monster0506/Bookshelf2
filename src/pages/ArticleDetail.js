@@ -37,6 +37,8 @@ function ArticleDetail() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [createdAt, setCreatedAt] = useState(null);
+  const [folderId, setFolderId] = useState(null);
+  const [folderName, setFolderName] = useState(null);
   const [relatedArticles, setRelatedArticles] = useState([]);
   const [isPublic, setIsPublic] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
@@ -63,6 +65,8 @@ function ArticleDetail() {
           setIsPublic(articleData.public || false);
           setAutoTagSuggestions(articleData.autoTags || []);
           setCanEdit(currentUser && articleData.userid === currentUser.uid);
+          setFolderId(articleData.folderId);
+          setFolderName(articleData.folderName);
 
           // Fetch related articles after loading the main article
           fetchRelatedArticles(articleData);
@@ -152,6 +156,8 @@ function ArticleDetail() {
         title,
         tags: tagArray,
         public: isPublic,
+        folderId: folderId,
+        folderName: folderName,
         status,
       });
 
@@ -163,11 +169,12 @@ function ArticleDetail() {
 
       setSaving(false);
       console.log("Metadata saved successfully.");
+      // get the new article:
     } catch (error) {
       console.error("Error updating metadata:", error);
       setSaving(false);
     }
-  }, [id, tags, title, isPublic, status]);
+  }, [id, tags, title, isPublic, status, folderId, folderName]);
 
   const debouncedSaveNotes = useDebouncedCallback(() => {
     setSaving(true);
@@ -235,6 +242,10 @@ function ArticleDetail() {
               editing={editing}
               setEditing={setEditing}
               canEdit={canEdit}
+              folderId={folderId}
+              setFolderId={setFolderId}
+              folderName={folderName}
+              setFolderName={setFolderName}
               tagSuggestions={tagSuggestions}
               autoTagSuggestions={autoTagSuggestions}
               saveMetadata={saveMetadata}
