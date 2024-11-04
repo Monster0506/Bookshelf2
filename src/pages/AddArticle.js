@@ -118,43 +118,34 @@ function AddArticle() {
           );
           return;
         }
-      } else if (filetype === "HTML" && file) {
-        const {
-          content,
-          readingTime,
-          wordCount,
-          plaintext: extractedPlaintext,
-        } = await processHTMLFile(file);
-        articleContent = content;
-        plaintext = extractedPlaintext;
-        autoTags = generateTags(plaintext);
-        articleSummary = await summarizeContent(plaintext);
-        readInfo = {
-          text: content,
-          minutes: readingTime,
-          time: readingTime,
-          words: wordCount.toString(),
-        };
+      } else if ((filetype === "HTML" || filetype === "PDF") && file) {
         sourceURL = await uploadFileToStorage();
-      } else if (filetype === "PDF" && file) {
-        const {
-          content,
-          readingTime,
-          wordCount,
-          plaintext: extractedPlaintext,
-        } = await processPDFFile(file);
-        articleContent = content;
-        plaintext = extractedPlaintext;
-        autoTags = generateTags(plaintext);
-        articleSummary = await summarizeContent(plaintext);
-        readInfo = {
-          text: content,
-          minutes: readingTime,
-          time: readingTime,
-          words: wordCount.toString(),
-        };
-        sourceURL = await uploadFileToStorage();
+        try {
+          const {
+            content,
+            readingTime,
+            wordCount,
+            plaintext: extractedPlaintext,
+          } = await fetchAndProcessContent(sourceURL);
+          articleContent = content;
+          plaintext = extractedPlaintext;
+          autoTags = generateTags(plaintext);
+          articleSummary = await summarizeContent(plaintext);
+          readInfo = {
+            text: content,
+            minutes: readingTime,
+            time: readingTime,
+            summary: articleSummary,
+            words: wordCount.toString(),
+          };
+        } catch (contentError) {
+          setError(
+            `Failed to extract content from the uploaded file. Please try again. ${contentError}`,
+          );
+          return;
+        }
       }
+
       const folderName =
         folders.find((folder) => folder.id === selectedFolder)?.name || "";
       const articleRef = await addArticle({
@@ -188,70 +179,70 @@ function AddArticle() {
 
   return (
     <motion.div
-      className="flex items-center justify-center min-h-screen bg-white"
-      initial={{ opacity: 0, scale: 0.9 }}
+      className="flex items-center justify-center min-h-screen bg-gray-100"
+      initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 2 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ type: "spring", stiffness: 100, damping: 20 }}
     >
       <motion.div
-        className="w-full max-w-lg p-8 space-y-6 bg-white rounded-xl shadow-2xl"
-        initial={{ y: -50, rotate: -5, opacity: 0 }}
-        animate={{ y: 0, rotate: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 80, duration: 2 }}
+        className="w-full max-w-2xl p-10 space-y-8 bg-white rounded-lg shadow-2xl"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 120, damping: 18 }}
       >
         <motion.h1
-          className="text-3xl font-semibold text-center text-blue-600"
-          initial={{ scale: 0.8, rotate: -5 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ duration: 1.5 }}
+          className="text-4xl font-bold text-center text-blue-700"
+          initial={{ scale: 0.85 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 140, damping: 10 }}
         >
           Add New Article
         </motion.h1>
         {error && (
           <motion.p
-            className="text-red-500 text-center"
-            initial={{ opacity: 0, x: -20 }}
+            className="text-red-600 text-center"
+            initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
           >
             {error}
           </motion.p>
         )}
         {success && (
           <motion.p
-            className="text-blue-500 text-center"
-            initial={{ opacity: 0, x: 20 }}
+            className="text-green-600 text-center"
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
           >
             {success}
           </motion.p>
         )}
-        <form onSubmit={handleAddArticle} className="space-y-4">
+        <form onSubmit={handleAddArticle} className="space-y-6">
           <motion.div
-            initial={{ x: -50, opacity: 0 }}
+            initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <input
               type="text"
               placeholder="Title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
               required
             />
           </motion.div>
           <motion.div
-            initial={{ x: 50, opacity: 0 }}
+            initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <select
               value={filetype}
               onChange={(e) => setFiletype(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out"
               required
             >
               <option value="URL">URL</option>
@@ -260,9 +251,9 @@ function AddArticle() {
             </select>
           </motion.div>
           <motion.div
-            initial={{ x: -50, opacity: 0 }}
+            initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             {filetype === "URL" ? (
               <input
@@ -270,7 +261,7 @@ function AddArticle() {
                 placeholder="Source (URL)"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
                 required
               />
             ) : (
@@ -278,20 +269,20 @@ function AddArticle() {
                 type="file"
                 accept={filetype === "PDF" ? "application/pdf" : "text/html"}
                 onChange={handleFileChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
                 required
               />
             )}
           </motion.div>
           <motion.div
-            initial={{ x: 50, opacity: 0 }}
+            initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out"
               required
             >
               <option value="READ">READ</option>
@@ -299,9 +290,9 @@ function AddArticle() {
             </select>
           </motion.div>
           <motion.div
-            initial={{ x: -50, opacity: 0 }}
+            initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <input
               type="text"
@@ -309,43 +300,38 @@ function AddArticle() {
               value={tags}
               onChange={(e) => {
                 const tagsList = e.target.value.split(",");
-                const tagsE = [];
-                for (const tag of tagsList) {
-                  tagsE.push(tag.trim());
-                }
-                setTags(tagsE);
+                setTags(tagsList.map((tag) => tag.trim()));
               }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
             />
           </motion.div>
           <motion.div
             className="flex items-center"
-            initial={{ x: 50, opacity: 0 }}
+            initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <input
               type="checkbox"
               checked={publicStatus}
               onChange={(e) => setPublicStatus(e.target.checked)}
-              className="mr-2 focus:ring-blue-500"
+              className="mr-2 focus:ring-blue-600"
             />
-            <label className="text-gray-700">Public</label>
+            <label className="text-gray-800">Public</label>
           </motion.div>
           <motion.div
-            className="mb-4"
+            className="mb-6"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
-            <label className="block text-lg font-semibold mb-2">
+            <label className="block text-lg font-medium mb-2">
               Select Folder
             </label>
-            <motion.select
+            <select
               value={selectedFolder}
               onChange={(e) => setSelectedFolder(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-transform duration-300 ease-in-out hover:scale-105"
-              whileHover={{ scale: 1.05 }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition-transform duration-200 ease-in-out hover:scale-105"
             >
               <option value="">No Folder</option>
               {folders.map((folder) => (
@@ -353,19 +339,18 @@ function AddArticle() {
                   {folder.name}
                 </option>
               ))}
-            </motion.select>
+            </select>
           </motion.div>
           <motion.button
             type="submit"
-            className={`w-full py-3 text-white rounded-lg shadow-md transition-transform duration-300 ${
+            className={`w-full py-3 text-white font-semibold rounded-md shadow-lg transition-transform duration-200 ease-in-out ${
               isUploading
-                ? "bg-gray-500 cursor-not-allowed"
+                ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
             }`}
             disabled={isUploading}
-            whileHover={{ scale: 1.05, rotate: 2 }}
-            whileTap={{ scale: 0.95, rotate: -2 }}
-            transition={{ duration: 1.5 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.2 }}
           >
             {isUploading ? "Uploading..." : "Add Article"}
           </motion.button>
