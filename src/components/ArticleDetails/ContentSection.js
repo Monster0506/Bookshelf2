@@ -95,6 +95,7 @@ function ContentSection({
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
+        handlePageChange={handlePageChange}
         setCurrentPage={setCurrentPage}
       />
       <NotesEditor
