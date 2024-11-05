@@ -70,7 +70,7 @@ const SimilarityArticleGraph = () => {
             source: articles[i].id,
             target: articles[j].id,
             width: similarity * 10, // Increase line thickness based on similarity
-            color: { color: "#848484" },
+            color: generateColorFromTitle(articles[i].id),
           });
         }
       }
@@ -80,7 +80,7 @@ const SimilarityArticleGraph = () => {
   };
 
   return (
-    <div style={{ backgroundColor: "#ffffff" }}>
+    <div style={{ backgroundColor: "#000000" }}>
       <ForceGraph3D
         graphData={createGraphData(articles)}
         nodeAutoColorBy="group"
@@ -90,7 +90,7 @@ const SimilarityArticleGraph = () => {
         linkDirectionalParticleWidth={1.5}
         linkCurvature={0.3}
         linkWidth={(link) => Math.sqrt(link.width || 1)}
-        backgroundColor="#ffffff"
+        backgroundColor="#000000"
         linkDirectionalArrowLength={8}
         linkDirectionalArrowRelPos={0.5}
         d3VelocityDecay={0.25}

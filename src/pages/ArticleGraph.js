@@ -25,7 +25,7 @@ const ArticleGraph = () => {
         </div>
 
         {/* Graph Container */}
-        <div className="bg-white p-4 rounded-lg shadow-md h-full">
+        <div className="bg-black p-4 rounded-lg shadow-md h-full">
           {showSimilarityGraph ? (
             <div>
               <h2 className="text-3xl font-semibold mb-4 text-center text-gray-800">

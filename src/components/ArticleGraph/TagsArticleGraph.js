@@ -63,7 +63,7 @@ const TagsArticleGraph = () => {
             links.push({
               source: articles[i].id,
               target: articles[j].id,
-              color: tagColorMap[sharedTags[0]] || "#848484",
+              color: tagColorMap[sharedTags[0]] || "#000000",
             });
           }
         }
@@ -86,7 +86,7 @@ const TagsArticleGraph = () => {
         linkWidth={(link) => Math.sqrt(link.value || 1) * 2}
         linkDirectionalArrowLength={6}
         linkDirectionalArrowRelPos={0.5}
-        backgroundColor="#ffffff"
+        backgroundColor="#000000"
         d3VelocityDecay={0.3}
         d3AlphaDecay={0.01}
         d3Force={(force) => {
