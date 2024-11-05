@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { Network } from "vis-network";
-import { DataSet } from "vis-data";
+import { ForceGraph3D } from "react-force-graph";
 import { fetchUserArticles } from "../../utils/articleUtils"; // Import the utility function
 import { useNavigate } from "react-router-dom";
-import options from "../../utils/graphOptions";
 
 const TagsArticleGraph = () => {
   const { currentUser } = useAuth();
@@ -15,18 +13,10 @@ const TagsArticleGraph = () => {
     const fetchArticles = async () => {
       const articlesData = await fetchUserArticles(currentUser);
       setArticles(articlesData);
-      createGraph(articlesData);
     };
 
     fetchArticles();
   }, [currentUser]);
-
-  const getRandomColor = () => {
-    const r = Math.floor(Math.random() * 256);
-    const g = Math.floor(Math.random() * 256);
-    const b = Math.floor(Math.random() * 256);
-    return `rgb(${r}, ${g}, ${b})`;
-  };
 
   const generateColorFromTag = (tag) => {
     let hash = 0;
@@ -41,32 +31,23 @@ const TagsArticleGraph = () => {
     return `rgb(${Math.abs(r)}, ${Math.abs(g)}, ${Math.abs(b)})`;
   };
 
-  const createTagColorMap = (articles) => {
+  const createGraphData = (articles) => {
+    const nodes = [];
+    const links = [];
     const tagColorMap = {};
+
     articles.forEach((article) => {
+      nodes.push({
+        id: article.id,
+        name: article.title,
+        color: generateColorFromTag(article.title),
+      });
+
       if (Array.isArray(article.tags)) {
         article.tags.forEach((tag) => {
           if (!tagColorMap[tag]) {
             tagColorMap[tag] = generateColorFromTag(tag);
           }
-        });
-      }
-    });
-    return tagColorMap;
-  };
-
-  const createGraph = (articles) => {
-    const nodes = [];
-    const edges = [];
-    const tagColorMap = createTagColorMap(articles);
-
-    articles.forEach((article) => {
-      if (Array.isArray(article.tags) && article.tags.length > 0) {
-        nodes.push({
-          id: article.id,
-          label: article.title,
-          title: article.title,
-          color: generateColorFromTag(article.title),
         });
       }
     });
@@ -79,39 +60,43 @@ const TagsArticleGraph = () => {
           );
 
           if (sharedTags.length > 0) {
-            const edgeColor = tagColorMap[sharedTags[0]] || "#848484";
-            edges.push({
-              from: articles[i].id,
-              to: articles[j].id,
-              label: sharedTags.join(", "),
-              color: { color: edgeColor },
+            links.push({
+              source: articles[i].id,
+              target: articles[j].id,
+              color: tagColorMap[sharedTags[0]] || "#848484",
             });
           }
         }
       }
     }
 
-    const data = {
-      nodes: new DataSet(nodes),
-      edges: new DataSet(edges),
-    };
-
-    const container = document.getElementById("article-network");
-    const network = new Network(container, data, options);
-
-    network.on("click", (params) => {
-      if (params.nodes.length > 0) {
-        const articleId = params.nodes[0];
-        navigate(`/articles/${articleId}`);
-      }
-    });
+    return { nodes, links };
   };
 
   return (
     <div>
-      <div
-        id="article-network"
-        style={{ height: "600px", border: "1px solid #ddd" }}
+      <ForceGraph3D
+        graphData={createGraphData(articles)}
+        nodeAutoColorBy="group"
+        onNodeClick={(node) => navigate(`/articles/${node.id}`)}
+        nodeLabel={(node) => `${node.name}`}
+        linkDirectionalParticles={0}
+        linkDirectionalParticleWidth={1}
+        linkCurvature={0.25}
+        linkWidth={(link) => Math.sqrt(link.value || 1) * 2}
+        linkDirectionalArrowLength={6}
+        linkDirectionalArrowRelPos={0.5}
+        backgroundColor="#ffffff"
+        d3VelocityDecay={0.3}
+        d3AlphaDecay={0.01}
+        d3Force={(force) => {
+          if (force.name === "charge") {
+            force.strength(-120);
+          }
+          return force;
+        }}
+        width={1200}
+        height={600}
       />
     </div>
   );

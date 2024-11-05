@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { Network } from "vis-network";
-import { DataSet } from "vis-data";
+import { ForceGraph3D } from "react-force-graph";
 import {
   fetchUserArticles,
   computeTFIDF,
   cosineSimilarity,
 } from "../../utils/articleUtils"; // Import the utility functions
 import { useNavigate } from "react-router-dom";
-import options from "../../utils/graphOptions";
 
 const SimilarityArticleGraph = () => {
   const { currentUser } = useAuth();
@@ -20,7 +18,6 @@ const SimilarityArticleGraph = () => {
       try {
         const articlesData = await fetchUserArticles(currentUser);
         setArticles(articlesData);
-        createGraph(articlesData);
       } catch (error) {
         console.error("Error fetching articles:", error);
       }
@@ -44,20 +41,14 @@ const SimilarityArticleGraph = () => {
     return `rgb(${Math.abs(r)}, ${Math.abs(g)}, ${Math.abs(b)})`;
   };
 
-  const createGraph = (articles) => {
-    if (!articles || articles.length === 0) {
-      console.error("No articles available to create graph");
-      return;
-    }
-
+  const createGraphData = (articles) => {
     const nodes = [];
-    const edges = [];
+    const links = [];
 
     articles.forEach((article) => {
       nodes.push({
         id: article.id,
-        label: article.title,
-        title: article.title,
+        name: article.title,
         color: generateColorFromTitle(article.title),
       });
     });
@@ -74,44 +65,44 @@ const SimilarityArticleGraph = () => {
 
       for (let j = i + 1; j < articles.length; j++) {
         const similarity = cosineSimilarity(targetVector, tfidfVectors[j]);
-        if (similarity > 0.1) {
-          edges.push({
-            from: articles[i].id,
-            to: articles[j].id,
+        if (similarity > 0.05) {
+          links.push({
+            source: articles[i].id,
+            target: articles[j].id,
             width: similarity * 10, // Increase line thickness based on similarity
-            physics: { springConstant: similarity * 10 }, // Increase gravity based on similarity
             color: { color: "#848484" },
           });
         }
       }
     }
 
-    const data = {
-      nodes: new DataSet(nodes),
-      edges: new DataSet(edges),
-    };
-
-    const container = document.getElementById("similarity-network");
-    if (!container) {
-      console.error("Graph container not found");
-      return;
-    }
-
-    const network = new Network(container, data, options);
-
-    network.on("click", (params) => {
-      if (params.nodes.length > 0) {
-        const articleId = params.nodes[0];
-        navigate(`/articles/${articleId}`);
-      }
-    });
+    return { nodes, links };
   };
 
   return (
-    <div>
-      <div
-        id="similarity-network"
-        style={{ height: "600px", border: "1px solid #ddd" }}
+    <div style={{ backgroundColor: "#ffffff" }}>
+      <ForceGraph3D
+        graphData={createGraphData(articles)}
+        nodeAutoColorBy="group"
+        onNodeClick={(node) => navigate(`/articles/${node.id}`)}
+        nodeLabel={(node) => `${node.name}`}
+        linkDirectionalParticles={0}
+        linkDirectionalParticleWidth={1.5}
+        linkCurvature={0.3}
+        linkWidth={(link) => Math.sqrt(link.width || 1)}
+        backgroundColor="#ffffff"
+        linkDirectionalArrowLength={8}
+        linkDirectionalArrowRelPos={0.5}
+        d3VelocityDecay={0.25}
+        d3AlphaDecay={0.008}
+        d3Force={(force) => {
+          if (force.name === "charge") {
+            force.strength(-150);
+          }
+          return force;
+        }}
+        width={1200}
+        height={600}
       />
     </div>
   );
