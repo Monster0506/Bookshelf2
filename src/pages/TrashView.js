@@ -15,6 +15,8 @@ import {
   FaMinusSquare,
   FaSquare,
   FaCaretDown,
+  FaTh,
+  FaList,
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 import Modal from "react-modal";
@@ -30,6 +32,7 @@ function TrashView() {
   const [sortBy, setSortBy] = useState("date");
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [modalContent, setModalContent] = useState({});
+  const [viewMode, setViewMode] = useState("grid"); // New feature: Toggle view mode between grid and list
 
   useEffect(() => {
     const fetchTrashedArticles = async () => {
@@ -183,6 +186,10 @@ function TrashView() {
     });
   };
 
+  const toggleViewMode = () => {
+    setViewMode((prevMode) => (prevMode === "grid" ? "list" : "grid"));
+  };
+
   const selectAllIcon =
     getSelectAllState() === "selected" ? (
       <FaCheckSquare />
@@ -243,13 +250,21 @@ function TrashView() {
             <option value="source">Source</option>
           </select>
         </label>
-        <button
-          onClick={toggleSelectAll}
-          className="flex items-center p-3 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 shadow transition-all"
-        >
-          {selectAllIcon}
-          <FaCaretDown className="ml-2" />
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={toggleSelectAll}
+            className="flex items-center p-3 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 shadow transition-all"
+          >
+            {selectAllIcon}
+            <FaCaretDown className="ml-2" />
+          </button>
+          <button
+            onClick={toggleViewMode}
+            className="flex items-center p-3 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 shadow transition-all"
+          >
+            {viewMode === "grid" ? <FaList /> : <FaTh />}
+          </button>
+        </div>
       </div>
 
       {selectedArticles.length > 0 && (
@@ -271,67 +286,130 @@ function TrashView() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArticles.map((article) => (
-          <motion.div
-            key={article.id}
-            className="p-6 bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300 relative"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            whileHover={{ scale: 1.03 }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 truncate">
-                {article.title}
-              </h2>
-              <input
-                type="checkbox"
-                checked={selectedArticles.includes(article.id)}
-                onChange={() => toggleSelectArticle(article.id)}
-                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-              />
-            </div>
-            <p className="text-sm text-gray-500 mb-4 italic truncate">
-              {article.source}
-            </p>
-            <p className="text-base text-gray-700 mb-4 leading-relaxed line-clamp-3">
-              {article.summary || "No summary available."}
-            </p>
-
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex gap-3">
-                <motion.button
-                  onClick={() => {
-                    openModal({
-                      title: "Restore Article",
-                      message: `Are you sure you want to restore this article titled '${article.title}'?`,
-                      details: `This article will be restored to your library. Please confirm if you want to proceed.`,
-                      onConfirm: () => {
-                        restoreArticle(article.id, article);
-                        closeModal();
-                      },
-                    });
-                  }}
-                  className="px-5 py-2 rounded-lg flex items-center bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <FaUndo className="mr-2" /> Restore
-                </motion.button>
-                <motion.button
-                  onClick={() => permanentlyDeleteArticle(article.id)}
-                  className="px-5 py-2 rounded-lg flex items-center bg-red-600 text-white hover:bg-red-700 shadow-md transition-all"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <FaTrashAlt className="mr-2" /> Delete
-                </motion.button>
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredArticles.map((article) => (
+            <motion.div
+              key={article.id}
+              className="p-6 bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              whileHover={{ scale: 1.03 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 truncate">
+                  {article.title}
+                </h2>
+                <input
+                  type="checkbox"
+                  checked={selectedArticles.includes(article.id)}
+                  onChange={() => toggleSelectArticle(article.id)}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                />
               </div>
-              <span className="text-sm text-gray-400">
-                {article.date.seconds}
-              </span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+              <p className="text-sm text-gray-500 mb-4 italic truncate">
+                {article.source}
+              </p>
+              <p className="text-base text-gray-700 mb-4 leading-relaxed line-clamp-3">
+                {article.summary || "No summary available."}
+              </p>
+
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={() => {
+                      openModal({
+                        title: "Restore Article",
+                        message: `Are you sure you want to restore this article titled '${article.title}'?`,
+                        details: `This article will be restored to your library. Please confirm if you want to proceed.`,
+                        onConfirm: () => {
+                          restoreArticle(article.id, article);
+                          closeModal();
+                        },
+                      });
+                    }}
+                    className="px-5 py-2 rounded-lg flex items-center bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <FaUndo className="mr-2" /> Restore
+                  </motion.button>
+                  <motion.button
+                    onClick={() => permanentlyDeleteArticle(article.id)}
+                    className="px-5 py-2 rounded-lg flex items-center bg-red-600 text-white hover:bg-red-700 shadow-md transition-all"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <FaTrashAlt className="mr-2" /> Delete
+                  </motion.button>
+                </div>
+                <span className="text-sm text-gray-400">
+                  {article.date.seconds}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredArticles.map((article) => (
+            <motion.div
+              key={article.id}
+              className="p-4 bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              whileHover={{ scale: 1.03 }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {article.title}
+                </h2>
+                <input
+                  type="checkbox"
+                  checked={selectedArticles.includes(article.id)}
+                  onChange={() => toggleSelectArticle(article.id)}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
+                />
+              </div>
+              <p className="text-sm text-gray-500 mb-2 italic">
+                {article.source}
+              </p>
+              <p className="text-base text-gray-700 mb-4 leading-relaxed">
+                {article.summary || "No summary available."}
+              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={() => {
+                      openModal({
+                        title: "Restore Article",
+                        message: `Are you sure you want to restore this article titled '${article.title}'?`,
+                        details: `This article will be restored to your library. Please confirm if you want to proceed.`,
+                        onConfirm: () => {
+                          restoreArticle(article.id, article);
+                          closeModal();
+                        },
+                      });
+                    }}
+                    className="px-5 py-2 rounded-lg flex items-center bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <FaUndo className="mr-2" /> Restore
+                  </motion.button>
+                  <motion.button
+                    onClick={() => permanentlyDeleteArticle(article.id)}
+                    className="px-5 py-2 rounded-lg flex items-center bg-red-600 text-white hover:bg-red-700 shadow-md transition-all"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <FaTrashAlt className="mr-2" /> Delete
+                  </motion.button>
+                </div>
+                <span className="text-sm text-gray-400">
+                  {article.date.seconds}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <Modal
         isOpen={modalIsOpen}

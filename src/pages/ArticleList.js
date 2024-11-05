@@ -12,7 +12,7 @@ import {
   doc,
   deleteDoc,
 } from "firebase/firestore";
-import { FaFilter } from "react-icons/fa";
+import { FaFilter, FaTh, FaList } from "react-icons/fa";
 import Loading from "../components/Loading";
 import ErrorComponent from "../components/Error";
 import ArticleCard from "../components/ArticleList/ArticleCard";
@@ -20,6 +20,7 @@ import SearchBar from "../components/ArticleList/SearchBar";
 import FilterMenu from "../components/ArticleList/FilterMenu";
 import ShareModal from "../components/ArticleList/ShareModal";
 import { motion } from "framer-motion";
+import ArticleListCard from "../components/ArticleList/ArticleListCard";
 
 function ArticleList() {
   const { currentUser } = useAuth();
@@ -27,6 +28,7 @@ function ArticleList() {
   const [filteredArticles, setFilteredArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState("grid"); // New feature: Toggle view mode between grid and list
 
   // State for sorting, filtering, and searching
   const [sortOption, setSortOption] = useState("date");
@@ -175,7 +177,14 @@ function ArticleList() {
     sortOption,
   ]);
 
-  // Function to toggle the article's status
+  const toggleViewMode = () => {
+    setViewMode((prevMode) => (prevMode === "grid" ? "list" : "grid"));
+  };
+
+  const handleContextMenuToggle = (articleId) => {
+    setContextMenu((prevState) => (prevState === articleId ? null : articleId));
+  };
+
   const toggleArticleStatus = async (articleId, currentStatus) => {
     const newStatus = currentStatus === "UNREAD" ? "READ" : "UNREAD";
     try {
@@ -195,12 +204,6 @@ function ArticleList() {
     }
   };
 
-  // Function to filter by tag
-  const handleTagClick = (tag) => {
-    setTagFilter(tag);
-  };
-
-  // Function to archive the article
   const archiveArticle = async (articleId, currentArchived) => {
     try {
       const articleRef = doc(db, "articles", articleId);
@@ -234,7 +237,6 @@ function ArticleList() {
     }
   };
 
-  // Function to delete the article
   const deleteArticle = async (articleId) => {
     try {
       const articleRef = doc(db, "articles", articleId);
@@ -271,9 +273,8 @@ function ArticleList() {
     }
   };
 
-  // Function to handle context menu visibility
-  const handleContextMenuToggle = (articleId) => {
-    setContextMenu((prevState) => (prevState === articleId ? null : articleId));
+  const handleTagClick = (tag) => {
+    setTagFilter(tag);
   };
 
   if (loading) {
@@ -295,6 +296,12 @@ function ArticleList() {
           className="p-2 ml-2 bg-gray-200 rounded hover:bg-gray-300"
         >
           <FaFilter />
+        </button>
+        <button
+          onClick={toggleViewMode}
+          className="p-2 ml-4 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          {viewMode === "grid" ? <FaList /> : <FaTh />}
         </button>
       </div>
       {/* Filter Menu */}
@@ -322,28 +329,49 @@ function ArticleList() {
           </div>
         )}
       {/* Article List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredArticles.map((article, index) => (
-          <motion.div
-            key={article.id}
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.1 }}
-          >
-            <ArticleCard
-              article={article}
-              handleContextMenuToggle={handleContextMenuToggle}
-              contextMenu={contextMenu}
-              toggleArticleStatus={toggleArticleStatus}
-              archiveArticle={archiveArticle}
-              deleteArticle={deleteArticle}
-              currentUser={currentUser}
-              handleShare={handleShare}
-              handleTagClick={handleTagClick} // Pass handleTagClick to ArticleCard
-            />
-          </motion.div>
-        ))}
-      </div>
+      {viewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredArticles.map((article, index) => (
+            <motion.div
+              key={article.id}
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+            >
+              <ArticleCard
+                article={article}
+                handleContextMenuToggle={handleContextMenuToggle}
+                contextMenu={contextMenu}
+                toggleArticleStatus={toggleArticleStatus}
+                archiveArticle={archiveArticle}
+                deleteArticle={deleteArticle}
+                currentUser={currentUser}
+                handleShare={handleShare}
+                handleTagClick={handleTagClick} // Pass handleTagClick to ArticleCard
+              />
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredArticles.map((article, index) => (
+            <motion.div
+              key={article.id}
+              className="p-4 bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300 relative"
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+            >
+              <ArticleListCard
+                article={article}
+                archiveArticle={archiveArticle}
+                deleteArticle={deleteArticle}
+                handleShare={handleShare}
+              />
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Share Modal */}
       <ShareModal
