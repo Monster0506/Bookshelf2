@@ -92,7 +92,7 @@ function Sidebar({
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl p-8 lg:relative lg:static rounded-l-lg border"
+          className="bg-white shadow-xl p-6 border rounded-lg w-96 sticky top-16 h-auto max-h-[calc(100vh-4rem)] overflow-y-auto"
         >
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">Metadata</h2>

@@ -98,14 +98,6 @@ function ContentSection({
         handlePageChange={handlePageChange}
         setCurrentPage={setCurrentPage}
       />
-      <NotesEditor
-        notes={notes}
-        setNotes={setNotes}
-        saveNotes={saveNotes}
-        canEdit={canEdit}
-        saving={saving}
-      />
-      <RelatedArticles relatedArticles={relatedArticles} />
     </motion.div>
   );
 }

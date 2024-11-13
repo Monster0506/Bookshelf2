@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { db } from "../firebaseConfig";
 import { useDebouncedCallback } from "use-debounce";
+import NotesEditor from "../components/ArticleDetails/Content/NotesEditor";
+import RelatedArticles from "../components/ArticleDetails/Content/RelatedArticles";
 import {
   doc,
   getDoc,
@@ -42,6 +44,13 @@ function ArticleDetail() {
   const [relatedArticles, setRelatedArticles] = useState([]);
   const [isPublic, setIsPublic] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [activeTab, setActiveTab] = useState("content");
+
+  const tabs = [
+    { id: "content", label: "Content" },
+    { id: "notes", label: "Notes" },
+    { id: "related", label: "Related Items" },
+  ];
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -77,7 +86,6 @@ function ArticleDetail() {
         console.error("Error fetching article:", err);
         setError("Failed to load article.");
       } finally {
-        setLoading(false);
       }
     };
     const fetchTags = async () => {
@@ -118,6 +126,8 @@ function ArticleDetail() {
         );
       } catch (err) {
         console.error("Error fetching related articles:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -144,7 +154,6 @@ function ArticleDetail() {
 
   const saveMetadata = useCallback(async () => {
     try {
-      console.log("Saving metadata...");
       setSaving(true);
       const articleRef = doc(db, "articles", id);
       const tagArray = tags
@@ -156,8 +165,8 @@ function ArticleDetail() {
         title,
         tags: tagArray,
         public: isPublic,
-        folderId: folderId,
-        folderName: folderName,
+        folderId: folderId || false,
+        folderName: folderName || false,
         status,
       });
 
@@ -196,41 +205,64 @@ function ArticleDetail() {
     <div className="min-h-screen bg-gray-50 p-6 md:p-5">
       <Header
         navigate={navigate}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        tabs={tabs}
         showSidebar={showSidebar}
         setShowSidebar={setShowSidebar}
       />
       <div className="flex flex-col lg:flex-row gap-5">
         {/* Content Section */}
-        <div className={`flex-grow ${showSidebar ? "lg:w-2/3" : "w-full"}`}>
-          <ContentSection
-            article={article}
-            title={title}
-            setTitle={setTitle}
-            notes={notes}
-            setNotes={setNotes}
-            editing={editing}
-            setEditing={setEditing}
-            status={status}
-            setStatus={setStatus}
-            tags={tags}
-            setTags={setTags}
-            createdAt={createdAt}
-            showSummary={showSummary}
-            saveNotes={debouncedSaveNotes}
-            setShowSummary={setShowSummary}
-            relatedArticles={relatedArticles}
-            canEdit={canEdit}
-            isPublic={isPublic}
-            setIsPublic={setIsPublic}
-            tagSuggestions={tagSuggestions}
-            setTagSuggestions={setTagSuggestions}
-            saving={saving}
-          />
-        </div>
+        {activeTab === "content" && (
+          <div className={`flex-grow ${showSidebar ? "lg:w-2/3" : "w-full"}`}>
+            <ContentSection
+              article={article}
+              title={title}
+              setTitle={setTitle}
+              notes={notes}
+              setNotes={setNotes}
+              editing={editing}
+              setEditing={setEditing}
+              status={status}
+              setStatus={setStatus}
+              tags={tags}
+              setTags={setTags}
+              createdAt={createdAt}
+              showSummary={showSummary}
+              saveNotes={saveNotes}
+              setShowSummary={setShowSummary}
+              relatedArticles={relatedArticles}
+              canEdit={canEdit}
+              isPublic={isPublic}
+              setIsPublic={setIsPublic}
+              tagSuggestions={tagSuggestions}
+              setTagSuggestions={setTagSuggestions}
+              saving={saving}
+            />
+          </div>
+        )}
 
-        {/* Sidebar Section */}
+        {activeTab === "notes" && (
+          <div className="flex-grow">
+            <NotesEditor
+              notes={notes}
+              setNotes={setNotes}
+              saveNotes={saveNotes}
+              canEdit={canEdit}
+              saving={saving}
+            />
+          </div>
+        )}
+
+        {activeTab === "related" && (
+          <div className="flex-grow">
+            <RelatedArticles relatedArticles={relatedArticles} />
+          </div>
+        )}
+
+        {/* Sidebar */}
         {showSidebar && (
-          <div className="lg:w-1/3 w-full">
+          <div className="w-96 sticky top-16">
             <Sidebar
               article={article}
               tags={tags}
@@ -255,7 +287,6 @@ function ArticleDetail() {
           </div>
         )}
       </div>
-      {/* Scroll Button */}
       <ScrollButton />
     </div>
   );
