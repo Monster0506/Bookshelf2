@@ -1,49 +1,79 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import "../../css/ArticleCard.css"; // Custom CSS for additional animations
+import React from "react";
+import { Link } from "react-router-dom";
+import "../../css/ArticleCard.css"; // Ensure CSS matches the new design
+
 function ArticleListCard({
   article,
   archiveArticle,
   deleteArticle,
   handleShare,
+  handleTagClick,
 }) {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xl font-semibold text-gray-900">{article.title}</h2>
-      </div>
-      <p className="text-sm text-gray-500 mb-2 italic">{article.source}</p>
-      <p className="text-base text-gray-700 mb-4 leading-relaxed">
-        {article.summary || "No summary available."}
-      </p>
-      <div className="flex items-center justify-between">
-        <div className="flex gap-3">
-          <motion.button
-            onClick={() => handleShare(article.id)}
-            className="px-5 py-2 rounded-lg flex items-center bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all"
-            whileHover={{ scale: 1.05 }}
-          >
-            Share
-          </motion.button>
-          <motion.button
-            onClick={() => archiveArticle(article.id, article.archived)}
-            className="px-5 py-2 rounded-lg flex items-center bg-yellow-500 text-white hover:bg-yellow-600 shadow-md transition-all"
-            whileHover={{ scale: 1.05 }}
-          >
-            {article.archived ? "Unarchive" : "Archive"}
-          </motion.button>
-          <motion.button
-            onClick={() => deleteArticle(article.id)}
-            className="px-5 py-2 rounded-lg flex items-center bg-red-600 text-white hover:bg-red-700 shadow-md transition-all"
-            whileHover={{ scale: 1.05 }}
-          >
-            Delete
-          </motion.button>
+    <div className="bg-white border rounded-lg shadow-lg p-6 mb-4 transition hover:shadow-xl">
+      <Link to={`/articles/${article.id}`} className="block">
+        {/* Title Section */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-800 truncate">
+            {article.title}
+          </h2>
+          <span className="text-sm text-gray-400">
+            {article.date.toDate().toLocaleDateString()}
+          </span>
         </div>
-        <span className="text-sm text-gray-400">
-          {article.date.toDate().toLocaleDateString()}
-        </span>
-      </div>
+
+        {/* Source Section */}
+        <p className="text-sm text-gray-500 italic mb-3">
+          {article.source || "Unknown source"}
+        </p>
+
+        {/* Summary Section */}
+        <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+          {article.summary || "No summary available."}
+        </p>
+
+        {/* Tags Section */}
+        {article.tags && article.tags.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-4">
+            {article.tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-3 py-1 text-xs bg-blue-600 text-white rounded-full border whitespace-nowrap"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTagClick(tag);
+                }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleShare(article.id)}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-300"
+            >
+              Share
+            </button>
+            <button
+              onClick={() => archiveArticle(article.id, article.archived)}
+              className="px-4 py-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 focus:outline-none focus:ring focus:ring-yellow-300"
+            >
+              {article.archived ? "Unarchive" : "Archive"}
+            </button>
+            <button
+              onClick={() => deleteArticle(article.id)}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring focus:ring-red-300"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Link>
     </div>
   );
 }

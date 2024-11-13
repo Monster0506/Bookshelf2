@@ -347,7 +347,7 @@ function ArticleList() {
                 deleteArticle={deleteArticle}
                 currentUser={currentUser}
                 handleShare={handleShare}
-                handleTagClick={handleTagClick} // Pass handleTagClick to ArticleCard
+                handleTagClick={handleTagClick}
               />
             </motion.div>
           ))}
@@ -357,7 +357,7 @@ function ArticleList() {
           {filteredArticles.map((article, index) => (
             <motion.div
               key={article.id}
-              className="p-4 bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300 relative"
+              className="bg-white rounded-lg  relative"
               initial={{ opacity: 0, y: 60 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
@@ -365,6 +365,7 @@ function ArticleList() {
               <ArticleListCard
                 article={article}
                 archiveArticle={archiveArticle}
+                handleTagClick={handleTagClick}
                 deleteArticle={deleteArticle}
                 handleShare={handleShare}
               />

@@ -30,7 +30,7 @@ function ArticleCard({
   return (
     <motion.div
       key={article.id}
-      className={`relative p-6 border border-gray-300 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out transform h-full flex flex-col ${
+      className={`relative p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow duration-300 ease-in-out transform h-full flex flex-col ${
         article.status === "READ" ? "bg-gray-200" : "bg-white"
       }`}
       initial={{ opacity: 0, y: 50, scale: 0.9 }}
