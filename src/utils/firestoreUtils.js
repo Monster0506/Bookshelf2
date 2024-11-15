@@ -11,6 +11,7 @@ import {
   query,
   where,
   arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 
 export async function addArticle(articleData) {
@@ -28,16 +29,97 @@ export async function addArticle(articleData) {
 }
 
 // Add a new folder
-export const addFolder = async (folderName, userId, isPublic) => {
+export const addFolder = async (folderName, userId, isPublic, parentId = null, customization = {}) => {
   try {
     await addDoc(collection(db, "folders"), {
       name: folderName,
       userid: userId,
       public: isPublic,
       articles: [],
+      parentId: parentId, // For nested folders
+      subfolders: [], // Array of subfolder IDs
+      color: customization.color || "#3B82F6", // Default blue
+      icon: customization.icon || "folder", // Default folder icon
+      template: customization.template || null, // For folder templates
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
   } catch (error) {
     console.error("Error adding folder: ", error);
+    throw error;
+  }
+};
+
+// Create folder from template
+export const createFolderFromTemplate = async (templateName, userId) => {
+  const templates = {
+    research: {
+      name: "Research",
+      color: "#EF4444", // Red
+      icon: "research",
+      subfolders: ["Literature", "Notes", "Data", "Drafts"]
+    },
+    reading: {
+      name: "Reading List",
+      color: "#10B981", // Green
+      icon: "book",
+      subfolders: ["To Read", "In Progress", "Completed", "Favorites"]
+    },
+    work: {
+      name: "Work",
+      color: "#6366F1", // Indigo
+      icon: "briefcase",
+      subfolders: ["Projects", "References", "Archive"]
+    }
+  };
+
+  const template = templates[templateName];
+  if (!template) throw new Error("Template not found");
+
+  try {
+    // Create main folder
+    const mainFolderRef = await addDoc(collection(db, "folders"), {
+      name: template.name,
+      userid: userId,
+      public: false,
+      articles: [],
+      parentId: null,
+      subfolders: [],
+      color: template.color,
+      icon: template.icon,
+      template: templateName,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // Create subfolders
+    const subfolderPromises = template.subfolders.map(subfolderName =>
+      addDoc(collection(db, "folders"), {
+        name: subfolderName,
+        userid: userId,
+        public: false,
+        articles: [],
+        parentId: mainFolderRef.id,
+        subfolders: [],
+        color: template.color,
+        icon: template.icon,
+        template: templateName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    const subfolders = await Promise.all(subfolderPromises);
+    
+    // Update main folder with subfolder references
+    await updateDoc(mainFolderRef, {
+      subfolders: subfolders.map(subfolder => subfolder.id)
+    });
+
+    return mainFolderRef.id;
+  } catch (error) {
+    console.error("Error creating folder from template: ", error);
+    throw error;
   }
 };
 
@@ -51,10 +133,9 @@ export const updateFolder = async (folderId, updateData) => {
   }
 };
 
-// Delete a folder and clean up article references
+// Delete a folder and all its subfolders
 export const deleteFolder = async (folderId) => {
   try {
-    // Get the folder data first to get the list of articles
     const folderRef = doc(db, "folders", folderId);
     const folderDoc = await getDoc(folderRef);
     
@@ -62,9 +143,15 @@ export const deleteFolder = async (folderId) => {
       throw new Error("Folder not found");
     }
 
-    const articles = folderDoc.data().articles || [];
+    const folderData = folderDoc.data();
+    const articles = folderData.articles || [];
+    const subfolders = folderData.subfolders || [];
 
-    // Create an array of promises to update all articles
+    // Recursively delete subfolders
+    const subfolderPromises = subfolders.map(subfolderId => deleteFolder(subfolderId));
+    await Promise.all(subfolderPromises);
+
+    // Update article references
     const articleUpdates = articles.map(articleId => {
       const articleRef = doc(db, "articles", articleId);
       return updateDoc(articleRef, {
@@ -73,26 +160,55 @@ export const deleteFolder = async (folderId) => {
       });
     });
 
-    // Wait for all article updates to complete, then delete the folder
+    // Delete the folder itself
     await Promise.all([
       ...articleUpdates,
       deleteDoc(folderRef)
     ]);
+
+    // If this folder has a parent, update the parent's subfolders array
+    if (folderData.parentId) {
+      const parentRef = doc(db, "folders", folderData.parentId);
+      await updateDoc(parentRef, {
+        subfolders: arrayRemove(folderId),
+        updatedAt: serverTimestamp()
+      });
+    }
   } catch (error) {
     console.error("Error deleting folder: ", error);
     throw new Error("Failed to delete folder: " + error.message);
   }
 };
 
-// Get folders for a specific user
+// Get folders for a specific user with nested structure
 export const fetchUserFolders = async (userId) => {
   try {
     const folderQuery = query(
       collection(db, "folders"),
-      where("userid", "==", userId),
+      where("userid", "==", userId)
     );
     const folderSnapshot = await getDocs(folderQuery);
-    return folderSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    
+    // Create a map of all folders
+    const folderMap = new Map();
+    folderSnapshot.docs.forEach(doc => {
+      folderMap.set(doc.id, { id: doc.id, ...doc.data(), children: [] });
+    });
+
+    // Organize into tree structure
+    const rootFolders = [];
+    folderMap.forEach(folder => {
+      if (folder.parentId) {
+        const parent = folderMap.get(folder.parentId);
+        if (parent) {
+          parent.children.push(folder);
+        }
+      } else {
+        rootFolders.push(folder);
+      }
+    });
+
+    return rootFolders;
   } catch (error) {
     console.error("Error fetching folders: ", error);
     return [];
@@ -164,5 +280,57 @@ export const fetchFolder = async (folderId) => {
   } catch (error) {
     console.error("Error fetching folder: ", error);
     throw new Error("Failed to fetch folder.");
+  }
+};
+
+// Update article's folder
+export const updateArticleFolder = async (articleId, newFolderId) => {
+  try {
+    const articleRef = doc(db, "articles", articleId);
+    const articleDoc = await getDoc(articleRef);
+    
+    if (!articleDoc.exists()) {
+      throw new Error("Article not found");
+    }
+
+    const oldFolderId = articleDoc.data().folderId;
+
+    // Get the new folder's name
+    let newFolderName = "";
+    if (newFolderId) {
+      const newFolderRef = doc(db, "folders", newFolderId);
+      const newFolderDoc = await getDoc(newFolderRef);
+      if (newFolderDoc.exists()) {
+        newFolderName = newFolderDoc.data().name;
+      }
+    }
+
+    // Update the article
+    await updateDoc(articleRef, {
+      folderId: newFolderId || "",
+      folderName: newFolderName || "",
+      updatedAt: serverTimestamp()
+    });
+
+    // Remove article from old folder
+    if (oldFolderId) {
+      const oldFolderRef = doc(db, "folders", oldFolderId);
+      await updateDoc(oldFolderRef, {
+        articles: arrayRemove(articleId),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    // Add article to new folder
+    if (newFolderId) {
+      const newFolderRef = doc(db, "folders", newFolderId);
+      await updateDoc(newFolderRef, {
+        articles: arrayUnion(articleId),
+        updatedAt: serverTimestamp()
+      });
+    }
+  } catch (error) {
+    console.error("Error updating article folder:", error);
+    throw error;
   }
 };
