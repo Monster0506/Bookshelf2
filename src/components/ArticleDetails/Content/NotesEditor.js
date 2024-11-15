@@ -1,5 +1,5 @@
 // NotesEditor.js
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import MdEditor from "react-markdown-editor-lite";
 import ReactMarkdown from "react-markdown";
 import debounce from "lodash.debounce";
@@ -9,13 +9,16 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github.css";
 import "react-markdown-editor-lite/lib/index.css";
 import { fetchAllArticles } from "../../../utils/firestoreUtils";
+import ArticleLinks from './ArticleLinks';
 
 function NotesEditor({ 
   notes, 
   setNotes, 
   saveNotes, 
-  canEdit, 
+  canEdit = true,
   saving,
+  articleId,
+  articleTitle
 }) {
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
@@ -26,7 +29,7 @@ function NotesEditor({
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const editorRef = React.useRef(null);
+  const editorRef = useRef(null);
   const [stats, setStats] = useState({
     paragraphs: 0,
     sentences: 0,
@@ -35,6 +38,7 @@ function NotesEditor({
     headings: 0,
     links: 0
   });
+  const [outgoingLinks, setOutgoingLinks] = useState([]);
 
   // Fetch articles on component mount
   useEffect(() => {
@@ -94,6 +98,27 @@ function NotesEditor({
     calculateStats();
   }, [notes]);
 
+  // Extract outgoing links from notes
+  useEffect(() => {
+    const extractLinks = () => {
+      const linkRegex = /\[([^\]]+)\]\(@article:([^)]+)\)/g;
+      const links = new Set();
+      let match;
+      
+      while ((match = linkRegex.exec(notes)) !== null) {
+        const [, title, id] = match;
+        links.add(id);
+      }
+      
+      const linkedArticles = articles.filter(a => links.has(a.id));
+      setOutgoingLinks(linkedArticles);
+    };
+    
+    if (articles.length > 0) {
+      extractLinks();
+    }
+  }, [notes, articles]);
+
   // Custom link renderer for internal article links
   const linkRenderer = ({ href, children }) => {
     const isInternalLink = href.startsWith("@article:");
@@ -103,7 +128,7 @@ function NotesEditor({
       if (linkedArticle) {
         return (
           <a
-            href={`/article/${articleId}`}
+            href={`/articles/${articleId}`}
             className="text-blue-600 hover:text-blue-800 underline"
             title={linkedArticle.title}
           >
@@ -287,23 +312,26 @@ function NotesEditor({
         className="border rounded-lg overflow-hidden transition-all duration-300 ease-in-out"
       />
 
-      <div className="flex justify-between items-center text-sm">
-        <div className="text-gray-500">
-          {saving ? (
-            <span className="flex items-center">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Saving...
-            </span>
-          ) : hasUnsavedChanges ? (
-            <span className="text-yellow-600">Unsaved changes</span>
-          ) : (
-            <span className="text-green-600">Saved</span>
-          )}
-        </div>
+      <div className="flex justify-between items-center text-sm mt-4">
+        {saving ? (
+          <span className="flex items-center">
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Saving...
+          </span>
+        ) : hasUnsavedChanges ? (
+          <span className="text-yellow-600">Unsaved changes</span>
+        ) : (
+          <span className="text-green-600">Saved</span>
+        )}
       </div>
+
+      <ArticleLinks 
+        currentArticle={{ id: articleId, title: articleTitle }}
+        outgoingLinks={outgoingLinks}
+      />
     </div>
   );
 }

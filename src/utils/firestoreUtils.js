@@ -353,3 +353,32 @@ export const fetchAllArticles = async () => {
     throw error;
   }
 };
+
+// Find articles that contain links to the specified article
+export const findBacklinks = async (articleId) => {
+  try {
+    const articlesRef = collection(db, "articles");
+    const querySnapshot = await getDocs(articlesRef);
+    const backlinks = [];
+    
+    querySnapshot.forEach((doc) => {
+      const article = doc.data();
+      // Skip if it's the same article
+      if (doc.id === articleId) return;
+      
+      // Check if notes contain a link to the target article
+      if (article.notes && article.notes.includes(`@article:${articleId}`)) {
+        backlinks.push({
+          id: doc.id,
+          title: article.title,
+          ...article
+        });
+      }
+    });
+    
+    return backlinks;
+  } catch (error) {
+    console.error("Error finding backlinks:", error);
+    throw error;
+  }
+};

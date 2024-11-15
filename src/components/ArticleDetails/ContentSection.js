@@ -319,6 +319,15 @@ function ContentSection({
         onEditNote={editNote}
         onDeleteNote={deleteNote}
       />
+      <NotesEditor
+        notes={notes}
+        setNotes={setNotes}
+        saveNotes={saveNotes}
+        canEdit={canEdit}
+        saving={saving}
+        articleId={article.id}
+        articleTitle={article.title}
+      />
     </motion.div>
   );
 }
