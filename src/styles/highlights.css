@@ -1,0 +1,42 @@
+.highlight-yellow {
+  background-color: rgba(255, 255, 0, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.highlight-green {
+  background-color: rgba(0, 255, 0, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.highlight-blue {
+  background-color: rgba(0, 191, 255, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.highlight-purple {
+  background-color: rgba(147, 112, 219, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.highlight-red {
+  background-color: rgba(255, 0, 0, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover effects */
+.highlight-yellow:hover { background-color: rgba(255, 255, 0, 0.5); }
+.highlight-green:hover { background-color: rgba(0, 255, 0, 0.5); }
+.highlight-blue:hover { background-color: rgba(0, 191, 255, 0.5); }
+.highlight-purple:hover { background-color: rgba(147, 112, 219, 0.5); }
+.highlight-red:hover { background-color: rgba(255, 0, 0, 0.5); }
+
+/* Active highlight styles */
+.highlight-active {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}

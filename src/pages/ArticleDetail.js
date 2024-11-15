@@ -20,6 +20,7 @@ import Sidebar from "../components/ArticleDetails/Sidebar";
 import ScrollButton from "../components/ArticleDetails/ScrollButton";
 import Loading from "../components/Loading";
 import ErrorComponent from "../components/Error";
+import { ActiveReadingProvider } from "../components/ArticleDetails/ActiveReading/ActiveReadingProvider";
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -215,30 +216,32 @@ function ArticleDetail() {
         <div className="flex flex-col lg:flex-row gap-6">
           {activeTab === "content" && (
             <div className={`flex-grow ${showSidebar ? "lg:w-2/3" : "w-full"}`}>
-              <ContentSection
-                article={article}
-                title={title}
-                setTitle={setTitle}
-                notes={notes}
-                setNotes={setNotes}
-                editing={editing}
-                setEditing={setEditing}
-                status={status}
-                setStatus={setStatus}
-                tags={tags}
-                setTags={setTags}
-                createdAt={createdAt}
-                showSummary={showSummary}
-                saveNotes={saveNotes}
-                setShowSummary={setShowSummary}
-                relatedArticles={relatedArticles}
-                canEdit={canEdit}
-                isPublic={isPublic}
-                setIsPublic={setIsPublic}
-                tagSuggestions={tagSuggestions}
-                setTagSuggestions={setTagSuggestions}
-                saving={saving}
-              />
+              <ActiveReadingProvider articleId={id}>
+                <ContentSection
+                  article={article}
+                  title={title}
+                  setTitle={setTitle}
+                  notes={notes}
+                  setNotes={setNotes}
+                  editing={editing}
+                  setEditing={setEditing}
+                  status={status}
+                  setStatus={setStatus}
+                  tags={tags}
+                  setTags={setTags}
+                  createdAt={createdAt}
+                  showSummary={showSummary}
+                  saveNotes={saveNotes}
+                  setShowSummary={setShowSummary}
+                  relatedArticles={relatedArticles}
+                  canEdit={canEdit}
+                  isPublic={isPublic}
+                  setIsPublic={setIsPublic}
+                  tagSuggestions={tagSuggestions}
+                  setTagSuggestions={setTagSuggestions}
+                  saving={saving}
+                />
+              </ActiveReadingProvider>
             </div>
           )}
 
