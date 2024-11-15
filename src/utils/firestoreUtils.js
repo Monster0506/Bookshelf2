@@ -51,12 +51,36 @@ export const updateFolder = async (folderId, updateData) => {
   }
 };
 
-// Delete a folder
+// Delete a folder and clean up article references
 export const deleteFolder = async (folderId) => {
   try {
-    await deleteDoc(doc(db, "folders", folderId));
+    // Get the folder data first to get the list of articles
+    const folderRef = doc(db, "folders", folderId);
+    const folderDoc = await getDoc(folderRef);
+    
+    if (!folderDoc.exists()) {
+      throw new Error("Folder not found");
+    }
+
+    const articles = folderDoc.data().articles || [];
+
+    // Create an array of promises to update all articles
+    const articleUpdates = articles.map(articleId => {
+      const articleRef = doc(db, "articles", articleId);
+      return updateDoc(articleRef, {
+        folderId: "",
+        folderName: ""
+      });
+    });
+
+    // Wait for all article updates to complete, then delete the folder
+    await Promise.all([
+      ...articleUpdates,
+      deleteDoc(folderRef)
+    ]);
   } catch (error) {
     console.error("Error deleting folder: ", error);
+    throw new Error("Failed to delete folder: " + error.message);
   }
 };
 
@@ -74,17 +98,48 @@ export const fetchUserFolders = async (userId) => {
     return [];
   }
 };
-export const updateFolderWithArticle = async (folderId, articleId) => {
+
+export const updateFolderWithArticle = async (folderId, articleId, remove = false) => {
   try {
     const folderRef = doc(db, "folders", folderId);
-    await updateDoc(folderRef, {
-      articles: arrayUnion(articleId),
-    });
+    const articleRef = doc(db, "articles", articleId);
+
+    // Get the current folder data
+    const folderDoc = await getDoc(folderRef);
+    if (!folderDoc.exists()) {
+      throw new Error("Folder not found");
+    }
+
+    // Update the folder's articles array
+    const currentArticles = folderDoc.data().articles || [];
+    let updatedArticles;
+
+    if (remove) {
+      updatedArticles = currentArticles.filter(id => id !== articleId);
+    } else {
+      if (!currentArticles.includes(articleId)) {
+        updatedArticles = [...currentArticles, articleId];
+      } else {
+        updatedArticles = currentArticles;
+      }
+    }
+
+    // Update both the folder and article documents
+    await Promise.all([
+      updateDoc(folderRef, {
+        articles: updatedArticles
+      }),
+      updateDoc(articleRef, {
+        folderId: remove ? null : folderId,
+        folderName: remove ? null : folderDoc.data().name
+      })
+    ]);
   } catch (error) {
     console.error("Error updating folder with article: ", error);
     throw new Error("Failed to update folder with article.");
   }
 };
+
 export const fetchArticlesInFolder = async (folderId) => {
   try {
     const articlesRef = collection(db, "articles");
