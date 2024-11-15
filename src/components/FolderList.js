@@ -2,233 +2,354 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import {
   FaFolder,
   FaFolderOpen,
-  FaLock,
-  FaLockOpen,
-  FaPlus,
   FaChevronDown,
   FaChevronUp,
   FaBook,
+  FaPlus,
+  FaPalette,
+  FaRegClone,
 } from "react-icons/fa";
 import {
   fetchUserFolders,
   addFolder,
   updateFolder,
   deleteFolder,
+  createFolderFromTemplate,
   fetchArticlesInFolder,
+  updateArticleFolder,
 } from "../utils/firestoreUtils";
+
+const FOLDER_TEMPLATES = [
+  { id: "research", name: "Research", icon: "📚" },
+  { id: "reading", name: "Reading List", icon: "📖" },
+  { id: "work", name: "Work", icon: "💼" },
+];
+
+const FOLDER_COLORS = [
+  { id: "blue", value: "#3B82F6", name: "Blue" },
+  { id: "red", value: "#EF4444", name: "Red" },
+  { id: "green", value: "#10B981", name: "Green" },
+  { id: "purple", value: "#8B5CF6", name: "Purple" },
+  { id: "yellow", value: "#F59E0B", name: "Yellow" },
+  { id: "indigo", value: "#6366F1", name: "Indigo" },
+];
 
 function FolderList() {
   const { currentUser } = useAuth();
   const [folders, setFolders] = useState([]);
   const [newFolderName, setNewFolderName] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState({});
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0].value);
+  const [loading, setLoading] = useState(false);
+  const [folderArticles, setFolderArticles] = useState({});
 
   useEffect(() => {
-    loadFolders();
+    if (currentUser) {
+      loadFolders();
+    }
   }, [currentUser]);
 
   const loadFolders = async () => {
     if (!currentUser) return;
     try {
-      const userFolders = await fetchUserFolders(currentUser.uid);
-      setFolders(userFolders);
+      const fetchedFolders = await fetchUserFolders(currentUser.uid);
+      setFolders(fetchedFolders);
     } catch (error) {
       console.error("Error loading folders:", error);
+    }
+  };
+
+  const loadFolderArticles = async (folderId) => {
+    try {
+      const articles = await fetchArticlesInFolder(folderId);
+      setFolderArticles(prev => ({
+        ...prev,
+        [folderId]: articles
+      }));
+    } catch (error) {
+      console.error("Error loading folder articles:", error);
+    }
+  };
+
+  const toggleArticles = async (folderId) => {
+    if (expandedFolders.has(folderId)) {
+      setExpandedFolders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(folderId);
+        return newSet;
+      });
+    } else {
+      setExpandedFolders(prev => {
+        const newSet = new Set(prev);
+        newSet.add(folderId);
+        return newSet;
+      });
+      if (!folderArticles[folderId]) {
+        await loadFolderArticles(folderId);
+      }
     }
   };
 
   const handleAddFolder = async () => {
     if (!newFolderName.trim() || !currentUser) return;
     try {
-      await addFolder(newFolderName.trim(), currentUser.uid, false);
+      setLoading(true);
+      await addFolder(newFolderName.trim(), currentUser.uid, false, null, {
+        color: selectedColor,
+      });
       setNewFolderName("");
       loadFolders();
     } catch (error) {
       console.error("Error adding folder:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateFromTemplate = async (templateId) => {
+    if (!currentUser) return;
+    try {
+      setLoading(true);
+      await createFolderFromTemplate(templateId, currentUser.uid);
+      loadFolders();
+      setShowTemplateModal(false);
+    } catch (error) {
+      console.error("Error creating folder from template:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateFolder = async (folderId, isPublic) => {
     try {
       await updateFolder(folderId, { public: isPublic });
-      setFolders(
-        folders.map((folder) =>
-          folder.id === folderId ? { ...folder, public: isPublic } : folder
-        )
-      );
+      loadFolders();
     } catch (error) {
       console.error("Error updating folder:", error);
     }
   };
 
   const handleDeleteFolder = async (folderId) => {
-    try {
-      await deleteFolder(folderId);
-      setFolders(folders.filter((folder) => folder.id !== folderId));
-      setExpandedFolders((prev) => {
-        const newState = { ...prev };
-        delete newState[folderId];
-        return newState;
-      });
-    } catch (error) {
-      console.error("Error deleting folder:", error);
+    if (window.confirm("Are you sure you want to delete this folder and all its contents?")) {
+      try {
+        setLoading(true);
+        await deleteFolder(folderId);
+        loadFolders();
+      } catch (error) {
+        console.error("Error deleting folder:", error);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const toggleArticles = async (folderId) => {
-    if (expandedFolders[folderId]) {
-      setExpandedFolders((prev) => ({
-        ...prev,
-        [folderId]: false,
-      }));
-      return;
-    }
+  const onDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId) return;
 
     try {
-      const articles = await fetchArticlesInFolder(folderId);
-      setFolders(
-        folders.map((folder) =>
-          folder.id === folderId ? { ...folder, articles } : folder
-        )
-      );
-      setExpandedFolders((prev) => ({
-        ...prev,
-        [folderId]: true,
-      }));
+      setLoading(true);
+      
+      // Update the article's folder in Firestore
+      await updateArticleFolder(draggableId, destination.droppableId);
+
+      // Update the local state
+      setFolderArticles(prev => {
+        const sourceArticles = [...(prev[source.droppableId] || [])];
+        const destArticles = [...(prev[destination.droppableId] || [])];
+        const [movedArticle] = sourceArticles.splice(source.index, 1);
+        destArticles.splice(destination.index, 0, movedArticle);
+
+        return {
+          ...prev,
+          [source.droppableId]: sourceArticles,
+          [destination.droppableId]: destArticles
+        };
+      });
+
+      // Expand the destination folder if it's not already expanded
+      setExpandedFolders(prev => {
+        const newSet = new Set(prev);
+        newSet.add(destination.droppableId);
+        return newSet;
+      });
     } catch (error) {
-      console.error("Error fetching articles:", error);
+      console.error("Error moving article:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const renderArticles = (folderId) => {
+    const articles = folderArticles[folderId] || [];
+    return (
+      <Droppable droppableId={folderId}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`pl-8 space-y-2 ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
+          >
+            {articles.map((article, index) => (
+              <Draggable key={article.id} draggableId={article.id} index={index}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    className={`p-2 rounded-lg ${
+                      snapshot.isDragging
+                        ? 'bg-blue-100 shadow-lg'
+                        : 'bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <Link
+                      to={`/article/${article.id}`}
+                      className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
+                    >
+                      <FaBook className="flex-shrink-0" />
+                      <span className="truncate">{article.title || 'Untitled Article'}</span>
+                    </Link>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    );
+  };
+
+  const renderFolder = (folder, level = 0) => {
+    const isExpanded = expandedFolders.has(folder.id);
+    const hasChildren = folder.children?.length > 0;
+    
+    return (
+      <div key={folder.id} className="w-full">
+        <Droppable droppableId={folder.id}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`w-full ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
+            >
+              <div
+                className={`flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer`}
+                style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
+              >
+                <div className="flex items-center flex-grow">
+                  <button
+                    onClick={() => toggleArticles(folder.id)}
+                    className="mr-2 text-gray-500 hover:text-gray-700"
+                  >
+                    {isExpanded ? <FaChevronDown /> : <FaChevronUp />}
+                  </button>
+                  <FaFolder
+                    className="mr-2 flex-shrink-0"
+                    style={{ color: folder.color || FOLDER_COLORS[0].value }}
+                  />
+                  <span className="truncate font-medium">{folder.name}</span>
+                </div>
+              </div>
+              {isExpanded && renderArticles(folder.id)}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+        {hasChildren && (
+          <div className="ml-4">
+            {folder.children.map(child => renderFolder(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-6">
-        <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Manage Folders</h2>
-        <div className="flex gap-4 mb-6">
-          <input
-            type="text"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            className="flex-grow p-3 border rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter a new folder name"
-          />
-          <button
-            onClick={handleAddFolder}
-            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded shadow hover:bg-blue-700 transition-colors"
-          >
-            <FaPlus className="inline mr-2" />
-            Add Folder
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {folders.map((folder) => (
-
-            <motion.div
-              key={folder.id}
-              className="bg-gray-50 p-4 rounded-lg shadow hover:shadow-lg transition-shadow"
-              layout
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className="p-4 max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4">My Folders</h2>
+          <div className="flex items-center space-x-4 mb-4">
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="New folder name"
+              className="flex-grow p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="relative">
+              <button
+                onClick={() => document.getElementById("colorPicker").click()}
+                className="p-2 rounded bg-white border shadow-sm hover:bg-gray-50"
+                style={{ color: selectedColor }}
+              >
+                <FaPalette />
+              </button>
+              <input
+                type="color"
+                id="colorPicker"
+                value={selectedColor}
+                onChange={(e) => setSelectedColor(e.target.value)}
+                className="absolute opacity-0 w-0 h-0"
+              />
+            </div>
+            <button
+              onClick={handleAddFolder}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 transition-colors flex items-center"
             >
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-gray-700 flex items-center">
-                  {folder.public ? (
-                    <FaFolderOpen className="mr-2 text-blue-500" />
-                  ) : (
-                    <FaFolder className="mr-2 text-blue-500" />
-                  )}
-                  <Link
-                    to={`/folders/${folder.id}`}
-                    className="block group"
-                  >
-                    {folder.name}</Link>
-                </h3>
-                <button
-                  onClick={() => handleUpdateFolder(folder.id, !folder.public)}
-                  className={`px-4 py-2 rounded text-sm font-semibold shadow transition-colors flex items-center ${folder.public
-                    ? "bg-green-500 text-white hover:bg-green-600"
-                    : "bg-gray-500 text-white hover:bg-gray-600"
-                    }`}
-                >
-                  {folder.public ? (
-                    <>
-                      <FaLockOpen className="mr-2" /> Public
-                    </>
-                  ) : (
-                    <>
-                      <FaLock className="mr-2" /> Private
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="flex justify-between items-center mt-4">
-                <button
-                  onClick={() => handleDeleteFolder(folder.id)}
-                  className="px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 text-sm transition-colors"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => toggleArticles(folder.id)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600 text-sm transition-colors flex items-center"
-                >
-                  {expandedFolders[folder.id] ? (
-                    <>
-                      Hide Articles <FaChevronUp className="ml-2" />
-                    </>
-                  ) : (
-                    <>
-                      View Articles <FaChevronDown className="ml-2" />
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <AnimatePresence>
-                {expandedFolders[folder.id] && folder.articles && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 border-t pt-4">
-                      {folder.articles.length > 0 ? (
-                        <ul className="space-y-2">
-                          {folder.articles.map((article) => (
-                            <motion.li
-                              key={article.id}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              exit={{ opacity: 0, x: -20 }}
-                              className="flex items-center"
-                            >
-                              <FaBook className="text-gray-400 mr-2" />
-                              <Link
-                                to={`/articles/${article.id}`}
-                                className="text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                {article.title}
-                              </Link>
-                            </motion.li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-gray-500 text-center">No articles in this folder</p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+              <FaPlus className="mr-2" /> Add Folder
+            </button>
+            <button
+              onClick={() => setShowTemplateModal(true)}
+              className="px-4 py-2 bg-purple-500 text-white rounded shadow hover:bg-purple-600 transition-colors flex items-center"
+            >
+              <FaRegClone className="mr-2" /> Use Template
+            </button>
+          </div>
         </div>
+
+        <div className="space-y-2">
+          {folders.map(folder => renderFolder(folder))}
+        </div>
+
+        {/* Template Modal */}
+        {showTemplateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4">Choose a Template</h3>
+              <div className="space-y-4">
+                {FOLDER_TEMPLATES.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleCreateFromTemplate(template.id)}
+                    className="w-full p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors flex items-center"
+                  >
+                    <span className="text-2xl mr-4">{template.icon}</span>
+                    <span className="font-medium">{template.name}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowTemplateModal(false)}
+                className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors w-full"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </DragDropContext>
   );
 }
 
