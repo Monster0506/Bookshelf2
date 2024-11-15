@@ -82,7 +82,6 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              {/* Add ArticleList route */}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>

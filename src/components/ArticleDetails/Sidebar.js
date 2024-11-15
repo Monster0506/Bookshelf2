@@ -57,18 +57,67 @@ function Sidebar({
   }, [folderId]);
 
   const handleMetadataChange = (field, value) => {
-    if (field === "tags") {
-      const formattedTags = value.replace(/^,?\s*/, "");
-      setTags(formattedTags);
+    switch (field) {
+      case "tags":
+        const formattedTags = value.replace(/^,?\s*/, "").trim();
+        setTags(formattedTags);
+        break;
+      case "status":
+        setStatus(value);
+        break;
+      case "public":
+        setIsPublic(value);
+        break;
+      case "folderId":
+        setSelectedFolder(value);
+        if (value === "") {
+          // Clear folder
+          setFolderName("");
+          setFolderId("");
+        } else {
+          const selectedFolderData = folders.find((folder) => folder.id === value);
+          if (selectedFolderData) {
+            setFolderName(selectedFolderData.name);
+            setFolderId(value);
+          }
+        }
+        break;
+      default:
+        console.warn("Unknown metadata field:", field);
     }
-    if (field === "status") setStatus(value);
-    if (field === "public") setIsPublic(value);
-    if (field === "folderId") {
-      setSelectedFolder(value);
-      const selectedFolderData = folders.find((folder) => folder.id === value);
-      setFolderName(selectedFolderData?.name || "");
-      setFolderId(value);
+  };
+
+  const handleSaveChanges = () => {
+    // Ensure all state is properly set before saving
+    const selectedFolderData = folders.find((folder) => folder.id === selectedFolder);
+    
+    // Update folder information
+    if (selectedFolder && selectedFolderData) {
+      setFolderId(selectedFolder);
+      setFolderName(selectedFolderData.name);
+    } else {
+      // Clear folder if none selected
+      setFolderId("");
+      setFolderName("");
     }
+
+    // Clean up tags
+    const cleanedTags = tags
+      .split(",")
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+      .join(", ");
+    setTags(cleanedTags);
+
+    // Ensure boolean for public status
+    setIsPublic(Boolean(isPublic));
+    
+    // Ensure status is string
+    setStatus(status || "");
+
+    // Exit edit mode and save
+    setEditing(false);
+    saveMetadata();
   };
 
   const appendTag = (tag) => {
@@ -95,14 +144,6 @@ function Sidebar({
         console.error("Failed to add folder", error);
       }
     }
-  };
-
-  const handleSaveChanges = () => {
-    setEditing(false);
-    setFolderId(selectedFolder);
-    const selectedFolderData = folders.find((folder) => folder.id === selectedFolder);
-    setFolderName(selectedFolderData?.name || "");
-    saveMetadata();
   };
 
   const toggleFolder = (folderId) => {
@@ -171,14 +212,17 @@ function Sidebar({
               <h2 className="text-xl font-bold text-gray-900">Metadata</h2>
               {canEdit && (
                 <button
-                  onClick={() => setEditing(!editing)}
+                  onClick={editing ? handleSaveChanges : () => setEditing(true)}
+                  disabled={saving}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                    editing
-                      ? "bg-green-500 text-white hover:bg-green-600"
-                      : "bg-blue-500 text-white hover:bg-blue-600"
-                  } transition-colors`}
+                    saving
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : editing
+                      ? "bg-green-500 hover:bg-green-600"
+                      : "bg-blue-500 hover:bg-blue-600"
+                  } text-white transition-colors`}
                 >
-                  {editing ? "Save" : "Edit"}
+                  {saving ? "Saving..." : editing ? "Save" : "Edit"}
                 </button>
               )}
             </div>

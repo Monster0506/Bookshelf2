@@ -15,22 +15,6 @@ import MarginNotes from "./ActiveReading/MarginNotes";
 import HighlightPopup from "./ActiveReading/HighlightPopup";
 import { useActiveReading } from "./ActiveReading/ActiveReadingProvider";
 
-// Logger for debugging highlight rendering
-const logger = {
-  debug: (message, data = {}) => {
-    console.debug(`[ContentSection] 🎯 ${message}`, {
-      timestamp: new Date().toISOString(),
-      ...data
-    });
-  },
-  info: (message, data = {}) => {
-    console.log(`[ContentSection] 📘 ${message}`, data);
-  },
-  error: (message, error) => {
-    console.error(`[ContentSection] ❌ ${message}`, error);
-  }
-};
-
 function ContentSection({
   article,
   title,
@@ -116,11 +100,6 @@ function ContentSection({
       }
 
       if (startNode && startOffset < endOffset) {
-        logger.debug('Creating highlight', {
-          text,
-          range: { start: startOffset, end: endOffset }
-        });
-
         // Store the range values before clearing the selection
         const highlightRange = { start: startOffset, end: endOffset };
         
@@ -134,22 +113,12 @@ function ContentSection({
         }
       }
     } catch (error) {
-      logger.error('Error creating highlight', {
-        error,
-        text,
-        errorMessage: error.message
-      });
       selection.removeAllRanges();
     }
   }, [isHighlighting, addHighlight]);
 
   const renderHighlights = useCallback(() => {
     if (!contentRef.current || !highlights.length) return;
-
-    logger.info('Starting highlight render', {
-      highlightsCount: highlights.length,
-      currentPage
-    });
 
     // First, remove all existing highlights
     const existingHighlights = contentRef.current.querySelectorAll('[data-highlight-id]');
@@ -189,20 +158,9 @@ function ContentSection({
       currentPos += length;
     }
 
-    logger.debug('Text nodes mapped', {
-      totalTextNodes: textNodes.length,
-      totalTextLength: currentPos
-    });
-
     // Process each highlight
     sortedHighlights.forEach(highlight => {
       try {
-        logger.debug('Processing highlight', {
-          highlightId: highlight.id,
-          range: highlight.range,
-          color: highlight.color
-        });
-
         // Find the text node(s) containing this highlight
         const relevantNodes = textNodes.filter(({ start, end }) => 
           (start <= highlight.range.start && highlight.range.start < end) ||
@@ -230,11 +188,6 @@ function ContentSection({
           range.surroundContents(span);
         }
       } catch (error) {
-        logger.error('Error rendering highlight', {
-          error,
-          highlight,
-          errorMessage: error.message
-        });
       }
     });
   }, [highlights, currentPage]);
@@ -283,28 +236,17 @@ function ContentSection({
   }, [addHighlight, addNote]);
 
   const handleRemoveHighlight = useCallback(async (highlightId) => {
-    logger.info('Removing highlight', { highlightId });
-
     await removeHighlight(highlightId);
     setSelectedHighlight(null);
     
     // Remove the highlight span from the DOM
     const highlightSpan = document.querySelector(`[data-highlight-id="${highlightId}"]`);
     if (highlightSpan) {
-      logger.debug('Removing highlight span', {
-        highlightId,
-        spanContent: highlightSpan.textContent.substring(0, 50) + '...'
-      });
-
       const parent = highlightSpan.parentNode;
       while (highlightSpan.firstChild) {
         parent.insertBefore(highlightSpan.firstChild, highlightSpan);
       }
       parent.removeChild(highlightSpan);
-
-      logger.debug('Highlight span removed', { highlightId });
-    } else {
-      logger.error('Highlight span not found', { highlightId });
     }
   }, [removeHighlight]);
 

@@ -157,31 +157,56 @@ function ArticleDetail() {
     try {
       setSaving(true);
       const articleRef = doc(db, "articles", id);
+      
       const tagArray = tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag);
+        ? tags.split(",")
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0)
+        : [];
 
-      await updateDoc(articleRef, {
-        title,
+      const updateData = {
+        title: title || "",
         tags: tagArray,
-        public: isPublic,
-        folderId: folderId || false,
-        folderName: folderName || false,
-        status,
-      });
+        public: Boolean(isPublic),
+        status: status || "",
+        lastModified: new Date(),
+      };
+
+      if (folderId && folderName) {
+        updateData.folderId = folderId;
+        updateData.folderName = folderName;
+      }
+
+      await updateDoc(articleRef, updateData);
 
       const tagsCollection = collection(db, "tags");
       for (const tag of tagArray) {
         const tagDoc = doc(tagsCollection, tag);
-        await setDoc(tagDoc, { name: tag }, { merge: true });
+        await setDoc(tagDoc, { 
+          name: tag,
+          lastUsed: new Date()
+        }, { merge: true });
+      }
+
+      const updatedArticleDoc = await getDoc(articleRef);
+      if (updatedArticleDoc.exists()) {
+        const updatedArticle = { 
+          id: updatedArticleDoc.id, 
+          ...updatedArticleDoc.data() 
+        };
+        
+        setArticle(updatedArticle);
+        setTitle(updatedArticle.title || "");
+        setTags(Array.isArray(updatedArticle.tags) ? updatedArticle.tags.join(", ") : "");
+        setStatus(updatedArticle.status || "");
+        setIsPublic(!!updatedArticle.public);
+        setFolderId(updatedArticle.folderId || null);
+        setFolderName(updatedArticle.folderName || null);
       }
 
       setSaving(false);
-      console.log("Metadata saved successfully.");
-      // get the new article:
     } catch (error) {
-      console.error("Error updating metadata:", error);
+      console.error("Error saving metadata:", error);
       setSaving(false);
     }
   }, [id, tags, title, isPublic, status, folderId, folderName]);
