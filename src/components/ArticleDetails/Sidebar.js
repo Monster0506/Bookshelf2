@@ -35,6 +35,7 @@ function Sidebar({
   const [folders, setFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(folderId || "");
   const [newFolderName, setNewFolderName] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
 
   useEffect(() => {
     const fetchFolders = async () => {
@@ -104,245 +105,248 @@ function Sidebar({
     saveMetadata();
   };
 
+  const toggleFolder = (folderId) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
+
+  const renderFolderOption = (folder, level = 0) => {
+    const isExpanded = expandedFolders.has(folder.id);
+    const hasChildren = folder.children?.length > 0;
+    const isSelected = selectedFolder === folder.id;
+
+    return (
+      <div key={folder.id}>
+        <div
+          className={`flex items-center p-2 cursor-pointer hover:bg-gray-100 ${
+            isSelected ? "bg-blue-50" : ""
+          }`}
+          style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
+          onClick={() => handleMetadataChange("folderId", folder.id)}
+        >
+          {hasChildren && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFolder(folder.id);
+              }}
+              className="mr-2 text-gray-500 hover:text-gray-700"
+            >
+              {isExpanded ? "▼" : "▶"}
+            </button>
+          )}
+          <span className="truncate" style={{ color: folder.color }}>
+            {folder.name}
+          </span>
+        </div>
+        {hasChildren && isExpanded && (
+          <div>
+            {folder.children.map(child => renderFolderOption(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <AnimatePresence>
       {showSidebar && (
         <motion.div
           initial={{ x: "100%" }}
-          animate={{ x: 0 }}
+          animate={{ x: showSidebar ? 0 : "100%" }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="bg-white shadow-xl p-6 border rounded-lg w-96 sticky top-16 h-auto max-h-[calc(100vh-4rem)] overflow-y-auto"
+          className="sticky top-20 float-right mr-4 h-[calc(100vh-7rem)] w-72 bg-white shadow-xl overflow-y-auto z-30 rounded-2xl border border-gray-200"
+          style={{ maxHeight: 'calc(100vh - 7rem)' }}
         >
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Metadata</h2>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (editing) {
-                    handleSaveChanges();
-                  } else {
-                    setEditing(true);
-                  }
-                }}
-                className={`inline px-5 py-2 font-semibold text-sm border rounded-lg transition-all duration-300 shadow-lg ${
-                  editing ? "bg-green-600" : "bg-blue-600"
-                } text-white hover:shadow-xl hover:opacity-90`}
-              >
-                {editing ? "Save Changes" : "Edit Metadata"}
-              </button>
-            )}
-          </div>
-
-          <div className="mb-8">
-            <label className="block text-gray-800 mb-3 font-semibold text-lg">
-              Tags
-            </label>
-            {editing ? (
-              <>
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={(e) => handleMetadataChange("tags", e.target.value)}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
-                  placeholder="Add tags, separated by commas"
-                />
-
-                <div className="flex gap-4 mt-4">
-                  <button
-                    onClick={() => setShowTagSuggestions(!showTagSuggestions)}
-                    className="px-5 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all"
-                  >
-                    Tag Suggestions
-                  </button>
-                  <button
-                    onClick={() =>
-                      setShowAutoTagSuggestions(!showAutoTagSuggestions)
-                    }
-                    className="px-5 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-all"
-                  >
-                    Auto Tag Suggestions
-                  </button>
-                </div>
-
-                {(showTagSuggestions || showAutoTagSuggestions) && (
-                  <div className="mt-6 p-4 bg-white border rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                    {showTagSuggestions && (
-                      <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                          Tag Suggestions
-                        </h3>
-                        {tagSuggestions.map((suggestion, index) => (
-                          <div
-                            key={index}
-                            className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
-                            onClick={() => {
-                              appendTag(suggestion);
-                              setShowTagSuggestions(false);
-                            }}
-                          >
-                            {suggestion}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {showAutoTagSuggestions && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                          Auto Tag Suggestions
-                        </h3>
-                        {autoTagSuggestions.map((suggestion, index) => (
-                          <div
-                            key={index}
-                            className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
-                            onClick={() => {
-                              appendTag(suggestion);
-                              setShowAutoTagSuggestions(false);
-                            }}
-                          >
-                            {suggestion}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              tags.trim() && (
-                <div className="flex flex-wrap gap-3 mt-2">
-                  {tags.split(",").map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg"
-                    >
-                      {tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )
-            )}
-          </div>
-
-          <div className="mb-8">
-            <label className="block text-gray-800 mb-3 font-semibold text-lg">
-              Folder
-            </label>
-            {editing ? (
-              <>
-                <select
-                  value={selectedFolder}
-                  onChange={(e) =>
-                    handleMetadataChange("folderId", e.target.value)
-                  }
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Metadata</h2>
+              {canEdit && (
+                <button
+                  onClick={() => setEditing(!editing)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                    editing
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-blue-500 text-white hover:bg-blue-600"
+                  } transition-colors`}
                 >
-                  <option value="">No Folder</option>
-                  {folders?.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center gap-2 mt-4">
+                  {editing ? "Save" : "Edit"}
+                </button>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-gray-800 mb-3 font-semibold text-lg">
+                Tags
+              </label>
+              {editing ? (
+                <>
+                  <input
+                    type="text"
+                    value={tags}
+                    onChange={(e) => handleMetadataChange("tags", e.target.value)}
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
+                    placeholder="Add tags, separated by commas"
+                  />
+
+                  <div className="flex gap-4 mt-4">
+                    <button
+                      onClick={() => setShowTagSuggestions(!showTagSuggestions)}
+                      className="px-5 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600"
+                    >
+                      Tag Suggestions
+                    </button>
+                    <button
+                      onClick={() =>
+                        setShowAutoTagSuggestions(!showAutoTagSuggestions)
+                      }
+                      className="px-5 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600"
+                    >
+                      Auto Tag Suggestions
+                    </button>
+                  </div>
+
+                  {(showTagSuggestions || showAutoTagSuggestions) && (
+                    <div className="mt-6 p-4 bg-white border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                      {showTagSuggestions && (
+                        <div className="mb-4">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                            Tag Suggestions
+                          </h3>
+                          {tagSuggestions.map((suggestion, index) => (
+                            <div
+                              key={index}
+                              className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
+                              onClick={() => {
+                                appendTag(suggestion);
+                                setShowTagSuggestions(false);
+                              }}
+                            >
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {showAutoTagSuggestions && (
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                            Auto Tag Suggestions
+                          </h3>
+                          {autoTagSuggestions.map((suggestion, index) => (
+                            <div
+                              key={index}
+                              className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
+                              onClick={() => {
+                                appendTag(suggestion);
+                                setShowAutoTagSuggestions(false);
+                              }}
+                            >
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                tags.trim() && (
+                  <div className="flex flex-wrap gap-3 mt-2">
+                    {tags.split(",").map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg"
+                      >
+                        {tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Folder</h3>
+              <div className="mb-4">
+                <div className="max-h-48 overflow-y-auto border rounded-lg bg-white">
+                  <div 
+                    className="p-2.5 hover:bg-gray-50 cursor-pointer border-b"
+                    onClick={() => handleMetadataChange("folderId", "")}
+                  >
+                    <span className="text-gray-500">No Folder</span>
+                  </div>
+                  {folders.map(folder => renderFolderOption(folder))}
+                </div>
+              </div>
+              {editing && (
+                <div className="flex items-center space-x-2">
                   <input
                     type="text"
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
-                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
-                    placeholder="New Folder Name"
+                    placeholder="New folder name"
+                    className="flex-grow p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   <button
                     onClick={handleAddFolder}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-all"
+                    className="p-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     <FaPlus />
                   </button>
                 </div>
-              </>
-            ) : (
-              selectedFolder && (
-                <span className="text-gray-800">
-                  <Link
-                    to={`/folders/${selectedFolder}`}
-                    className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                  >
-                    {folders.find((folder) => folder.id === selectedFolder)
-                      ?.name || "No Folder"}
-                  </Link>
-                </span>
-              )
-            )}
-          </div>
+              )}
+            </div>
 
-          <div className="mb-8">
-            <label className="block text-gray-800 mb-3 font-semibold text-lg">
-              Public Status
-            </label>
-            {editing ? (
-              <select
-                value={isPublic ? "Public" : "Private"}
-                onChange={(e) =>
-                  handleMetadataChange("public", e.target.value === "Public")
-                }
-                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
-              >
-                <option value="Public">Public</option>
-                <option value="Private">Private</option>
-              </select>
-            ) : (
-              <span
-                className={`inline-block px-4 py-2 text-sm font-medium rounded-full shadow ${
-                  isPublic
-                    ? "bg-green-100 text-green-600"
-                    : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                {isPublic ? "Public" : "Private"}
-              </span>
-            )}
-          </div>
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Status</h3>
+              {editing ? (
+                <select
+                  value={status}
+                  onChange={(e) => handleMetadataChange("status", e.target.value)}
+                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="unread">Unread</option>
+                  <option value="reading">Reading</option>
+                  <option value="completed">Completed</option>
+                </select>
+              ) : (
+                <div className="text-gray-700 capitalize">{status}</div>
+              )}
+            </div>
 
-          <div className="mb-8">
-            <label className="block text-gray-800 mb-3 font-semibold text-lg">
-              Status
-            </label>
-            {editing ? (
-              <select
-                value={status}
-                onChange={(e) => handleMetadataChange("status", e.target.value)}
-                className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
-              >
-                <option value="READ">Read</option>
-                <option value="UNREAD">Unread</option>
-              </select>
-            ) : (
-              <span
-                className={`inline-block px-4 py-2 text-sm font-medium rounded-full shadow ${
-                  status === "READ"
-                    ? "bg-green-100 text-green-600"
-                    : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                {status}
-              </span>
-            )}
-          </div>
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Visibility</h3>
+              {editing ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    onChange={(e) => handleMetadataChange("public", e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <label className="text-gray-700">Make article public</label>
+                </div>
+              ) : (
+                <div className="text-gray-700">
+                  {isPublic ? "Public" : "Private"}
+                </div>
+              )}
+            </div>
 
-          <div className="mb-8">
-            <label className="block text-gray-800 mb-3 font-semibold text-lg">
-              Source
-            </label>
-            <Link to={article.source} target="_blank" rel="noopener noreferrer">
-              <p
-                className="text-blue-600 hover:text-blue-800 hover:underline font-medium truncate"
-                title={article.source}
-              >
-                {article.source}
-              </p>
-            </Link>
+            {saving && (
+              <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
+                Saving...
+              </div>
+            )}
           </div>
         </motion.div>
       )}

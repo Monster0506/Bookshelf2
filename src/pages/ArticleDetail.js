@@ -202,7 +202,7 @@ function ArticleDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-5">
+    <div className="min-h-screen bg-gray-50">
       <Header
         navigate={navigate}
         activeTab={activeTab}
@@ -211,81 +211,81 @@ function ArticleDetail() {
         showSidebar={showSidebar}
         setShowSidebar={setShowSidebar}
       />
-      <div className="flex flex-col lg:flex-row gap-5">
-        {/* Content Section */}
-        {activeTab === "content" && (
-          <div className={`flex-grow ${showSidebar ? "lg:w-2/3" : "w-full"}`}>
-            <ContentSection
-              article={article}
-              title={title}
-              setTitle={setTitle}
-              notes={notes}
-              setNotes={setNotes}
-              editing={editing}
-              setEditing={setEditing}
-              status={status}
-              setStatus={setStatus}
-              tags={tags}
-              setTags={setTags}
-              createdAt={createdAt}
-              showSummary={showSummary}
-              saveNotes={saveNotes}
-              setShowSummary={setShowSummary}
-              relatedArticles={relatedArticles}
-              canEdit={canEdit}
-              isPublic={isPublic}
-              setIsPublic={setIsPublic}
-              tagSuggestions={tagSuggestions}
-              setTagSuggestions={setTagSuggestions}
-              saving={saving}
-            />
-          </div>
-        )}
+      <div className="container mx-auto px-4 py-6 relative">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {activeTab === "content" && (
+            <div className={`flex-grow ${showSidebar ? "lg:w-2/3" : "w-full"}`}>
+              <ContentSection
+                article={article}
+                title={title}
+                setTitle={setTitle}
+                notes={notes}
+                setNotes={setNotes}
+                editing={editing}
+                setEditing={setEditing}
+                status={status}
+                setStatus={setStatus}
+                tags={tags}
+                setTags={setTags}
+                createdAt={createdAt}
+                showSummary={showSummary}
+                saveNotes={saveNotes}
+                setShowSummary={setShowSummary}
+                relatedArticles={relatedArticles}
+                canEdit={canEdit}
+                isPublic={isPublic}
+                setIsPublic={setIsPublic}
+                tagSuggestions={tagSuggestions}
+                setTagSuggestions={setTagSuggestions}
+                saving={saving}
+              />
+            </div>
+          )}
 
-        {activeTab === "notes" && (
-          <div className="flex-grow">
-            <NotesEditor
-              notes={notes}
-              setNotes={setNotes}
-              saveNotes={saveNotes}
-              canEdit={canEdit}
-              saving={saving}
-            />
-          </div>
-        )}
+          {activeTab === "notes" && (
+            <div className="flex-grow">
+              <NotesEditor
+                notes={notes}
+                setNotes={setNotes}
+                saveNotes={saveNotes}
+                canEdit={canEdit}
+                saving={saving}
+              />
+            </div>
+          )}
 
-        {activeTab === "related" && (
-          <div className="flex-grow">
-            <RelatedArticles relatedArticles={relatedArticles} />
-          </div>
-        )}
+          {activeTab === "related" && (
+            <div className="flex-grow">
+              <RelatedArticles relatedArticles={relatedArticles} />
+            </div>
+          )}
 
-        {/* Sidebar */}
-        {showSidebar && (
-          <div className="w-96 sticky top-16">
-            <Sidebar
-              article={article}
-              tags={tags}
-              setTags={setTags}
-              status={status}
-              setStatus={setStatus}
-              isPublic={isPublic}
-              setIsPublic={setIsPublic}
-              editing={editing}
-              setEditing={setEditing}
-              canEdit={canEdit}
-              folderId={folderId}
-              setFolderId={setFolderId}
-              folderName={folderName}
-              setFolderName={setFolderName}
-              tagSuggestions={tagSuggestions}
-              autoTagSuggestions={autoTagSuggestions}
-              saveMetadata={saveMetadata}
-              showSidebar={showSidebar}
-              saving={saving}
-            />
-          </div>
-        )}
+          {showSidebar && (
+            <div className="w-96 sticky top-16">
+              <Sidebar
+                article={article}
+                tags={tags}
+                setTags={setTags}
+                status={status}
+                setStatus={setStatus}
+                isPublic={isPublic}
+                setIsPublic={setIsPublic}
+                editing={editing}
+                setEditing={setEditing}
+                canEdit={canEdit}
+                folderId={folderId}
+                setFolderId={setFolderId}
+                folderName={folderName}
+                setFolderName={setFolderName}
+                tagSuggestions={tagSuggestions}
+                autoTagSuggestions={autoTagSuggestions}
+                saveMetadata={saveMetadata}
+                showSidebar={showSidebar}
+                saving={saving}
+              />
+            </div>
+          )}
+        </div>
       </div>
       <ScrollButton />
     </div>
