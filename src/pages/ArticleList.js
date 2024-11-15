@@ -31,14 +31,18 @@ function ArticleList() {
   const [viewMode, setViewMode] = useState("grid"); // New feature: Toggle view mode between grid and list
 
   // State for sorting, filtering, and searching
-  const [sortOption, setSortOption] = useState("date");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [publicFilter, setPublicFilter] = useState(false);
   const [archiveFilter, setArchiveFilter] = useState(false);
+  const [folderFilter, setFolderFilter] = useState("");
+  const [sortOption, setSortOption] = useState("date");
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [readingTimeRange, setReadingTimeRange] = useState({ min: "", max: "" });
+  const [wordCountRange, setWordCountRange] = useState({ min: "", max: "" });
 
   // State to track the context menu visibility
   const [contextMenu, setContextMenu] = useState(null);
@@ -130,6 +134,13 @@ function ArticleList() {
       );
     }
 
+    // Filter by folder
+    if (folderFilter) {
+      filtered = filtered.filter(
+        (article) => article.folderId === folderFilter
+      );
+    }
+
     // Filter by public/private
     if (publicFilter) {
       filtered = filtered.filter((article) => article.public === publicFilter);
@@ -142,12 +153,48 @@ function ArticleList() {
       filtered = filtered.filter((article) => !article.archived);
     }
 
-    // Filter by tags (article must include the tag)
+    // Filter by tags
     if (tagFilter) {
       filtered = filtered.filter((article) =>
         (article.tags || []).some(
           (tag) => tag.toLowerCase() === tagFilter.toLowerCase(),
         ),
+      );
+    }
+
+    // Filter by date range
+    if (dateRange.from) {
+      filtered = filtered.filter(
+        (article) => article.date.toDate() >= new Date(dateRange.from)
+      );
+    }
+    if (dateRange.to) {
+      filtered = filtered.filter(
+        (article) => article.date.toDate() <= new Date(dateRange.to)
+      );
+    }
+
+    // Filter by reading time range
+    if (readingTimeRange.min) {
+      filtered = filtered.filter(
+        (article) => parseInt(article.read.minutes) >= parseInt(readingTimeRange.min)
+      );
+    }
+    if (readingTimeRange.max) {
+      filtered = filtered.filter(
+        (article) => parseInt(article.read.minutes) <= parseInt(readingTimeRange.max)
+      );
+    }
+
+    // Filter by word count range
+    if (wordCountRange.min) {
+      filtered = filtered.filter(
+        (article) => parseInt(article.read.words) >= parseInt(wordCountRange.min)
+      );
+    }
+    if (wordCountRange.max) {
+      filtered = filtered.filter(
+        (article) => parseInt(article.read.words) <= parseInt(wordCountRange.max)
       );
     }
 
@@ -159,7 +206,7 @@ function ArticleList() {
         case "date":
           return b.date.toDate() - a.date.toDate();
         case "readingTime":
-          return parseInt(a.read.words) - parseInt(b.read.words);
+          return parseInt(a.read.minutes) - parseInt(b.read.minutes);
         default:
           return b.date.toDate() - a.date.toDate();
       }
@@ -175,6 +222,10 @@ function ArticleList() {
     publicFilter,
     archiveFilter,
     sortOption,
+    dateRange,
+    readingTimeRange,
+    wordCountRange,
+    folderFilter,
   ]);
 
   const toggleViewMode = () => {
@@ -319,6 +370,14 @@ function ArticleList() {
           setArchiveFilter={setArchiveFilter}
           sortOption={sortOption}
           setSortOption={setSortOption}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
+          readingTimeRange={readingTimeRange}
+          setReadingTimeRange={setReadingTimeRange}
+          wordCountRange={wordCountRange}
+          setWordCountRange={setWordCountRange}
+          folderFilter={folderFilter}
+          setFolderFilter={setFolderFilter}
         />
       )}
       {/* Results Found Section */}

@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { fetchUserFolders } from "../../utils/firestoreUtils";
+import { useAuth } from "../../contexts/AuthContext";
 import "../../css/FilterMenu.css"; // Custom CSS for styles
 
 function FilterMenu({
@@ -15,7 +17,28 @@ function FilterMenu({
   setArchiveFilter,
   sortOption,
   setSortOption,
+  dateRange,
+  setDateRange,
+  readingTimeRange,
+  setReadingTimeRange,
+  wordCountRange,
+  setWordCountRange,
+  folderFilter,
+  setFolderFilter,
 }) {
+  const { currentUser } = useAuth();
+  const [folders, setFolders] = useState([]);
+
+  useEffect(() => {
+    const loadFolders = async () => {
+      if (currentUser) {
+        const userFolders = await fetchUserFolders(currentUser.uid);
+        setFolders(userFolders);
+      }
+    };
+    loadFolders();
+  }, [currentUser]);
+
   // Variants for staggered animations and slide-in effect
   const containerVariants = {
     hidden: { opacity: 0, y: -20 },
@@ -43,6 +66,26 @@ function FilterMenu({
       animate="visible"
     >
       <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Folder Filter */}
+        <motion.select
+          value={folderFilter}
+          onChange={(e) => setFolderFilter(e.target.value)}
+          className="p-3 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+          whileHover={{
+            scale: 1.03,
+            boxShadow: "0 6px 12px rgba(0, 0, 0, 0.1)",
+          }}
+          transition={{ duration: 0.2 }}
+          variants={itemVariants}
+        >
+          <option value="">All Folders</option>
+          {folders.map((folder) => (
+            <option key={folder.id} value={folder.id}>
+              {folder.name}
+            </option>
+          ))}
+        </motion.select>
+
         {/* Status Filter */}
         <motion.select
           value={statusFilter}
@@ -76,6 +119,7 @@ function FilterMenu({
           <option value="URL">URL</option>
           <option value="PDF">PDF</option>
           <option value="HTML">HTML</option>
+          <option value="PLAINTEXT">Plaintext</option>
         </motion.select>
 
         {/* Tag Filter */}
@@ -92,6 +136,71 @@ function FilterMenu({
           transition={{ duration: 0.2 }}
           variants={itemVariants}
         />
+
+        {/* Date Range Filter */}
+        <motion.div className="space-y-2" variants={itemVariants}>
+          <label className="block text-sm font-medium text-gray-700">Date Range</label>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={dateRange?.from || ""}
+              onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+              className="p-2 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 w-1/2"
+            />
+            <input
+              type="date"
+              value={dateRange?.to || ""}
+              onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+              className="p-2 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 w-1/2"
+            />
+          </div>
+        </motion.div>
+
+        {/* Reading Time Range Filter */}
+        <motion.div className="space-y-2" variants={itemVariants}>
+          <label className="block text-sm font-medium text-gray-700">Reading Time (minutes)</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="0"
+              placeholder="Min"
+              value={readingTimeRange?.min || ""}
+              onChange={(e) => setReadingTimeRange(prev => ({ ...prev, min: e.target.value }))}
+              className="p-2 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 w-1/2"
+            />
+            <input
+              type="number"
+              min="0"
+              placeholder="Max"
+              value={readingTimeRange?.max || ""}
+              onChange={(e) => setReadingTimeRange(prev => ({ ...prev, max: e.target.value }))}
+              className="p-2 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 w-1/2"
+            />
+          </div>
+        </motion.div>
+
+        {/* Word Count Range Filter */}
+        <motion.div className="space-y-2" variants={itemVariants}>
+          <label className="block text-sm font-medium text-gray-700">Word Count</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min="0"
+              placeholder="Min"
+              value={wordCountRange?.min || ""}
+              onChange={(e) => setWordCountRange(prev => ({ ...prev, min: e.target.value }))}
+              className="p-2 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 w-1/2"
+            />
+            <input
+              type="number"
+              min="0"
+              placeholder="Max"
+              value={wordCountRange?.max || ""}
+              onChange={(e) => setWordCountRange(prev => ({ ...prev, max: e.target.value }))}
+              className="p-2 border rounded-lg bg-gray-100 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 w-1/2"
+            />
+          </div>
+        </motion.div>
 
         {/* Public Filter */}
         <motion.label

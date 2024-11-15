@@ -33,7 +33,7 @@ function Sidebar({
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showAutoTagSuggestions, setShowAutoTagSuggestions] = useState(false);
   const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState(article.folderId || "");
+  const [selectedFolder, setSelectedFolder] = useState(folderId || "");
   const [newFolderName, setNewFolderName] = useState("");
 
   useEffect(() => {
@@ -51,6 +51,10 @@ function Sidebar({
     }
   }, [article.userid]);
 
+  useEffect(() => {
+    setSelectedFolder(folderId || "");
+  }, [folderId]);
+
   const handleMetadataChange = (field, value) => {
     if (field === "tags") {
       const formattedTags = value.replace(/^,?\s*/, "");
@@ -58,7 +62,12 @@ function Sidebar({
     }
     if (field === "status") setStatus(value);
     if (field === "public") setIsPublic(value);
-    if (field === "folderId") setSelectedFolder(value);
+    if (field === "folderId") {
+      setSelectedFolder(value);
+      const selectedFolderData = folders.find((folder) => folder.id === value);
+      setFolderName(selectedFolderData?.name || "");
+      setFolderId(value);
+    }
   };
 
   const appendTag = (tag) => {
@@ -74,14 +83,25 @@ function Sidebar({
   const handleAddFolder = async () => {
     if (newFolderName.trim() !== "") {
       try {
-        await addFolder(newFolderName, article.userid, false);
+        const newFolder = await addFolder(newFolderName, article.userid, false);
         const userFolders = await fetchUserFolders(article.userid);
         setFolders(userFolders);
         setNewFolderName("");
+        if (newFolder?.id) {
+          handleMetadataChange("folderId", newFolder.id);
+        }
       } catch (error) {
         console.error("Failed to add folder", error);
       }
     }
+  };
+
+  const handleSaveChanges = () => {
+    setEditing(false);
+    setFolderId(selectedFolder);
+    const selectedFolderData = folders.find((folder) => folder.id === selectedFolder);
+    setFolderName(selectedFolderData?.name || "");
+    saveMetadata();
   };
 
   return (
@@ -100,18 +120,10 @@ function Sidebar({
               <button
                 type="button"
                 onClick={() => {
-                  setEditing(!editing);
                   if (editing) {
-                    setFolderId(selectedFolder);
-                    setFolderName(
-                      folders.find((folder) => folder.id === selectedFolder)
-                        ?.name || "",
-                    );
-                    saveMetadata();
-                    article.folderId = selectedFolder;
-                    article.folderName =
-                      folders.find((folder) => folder.id === selectedFolder)
-                        ?.name || "";
+                    handleSaveChanges();
+                  } else {
+                    setEditing(true);
                   }
                 }}
                 className={`inline px-5 py-2 font-semibold text-sm border rounded-lg transition-all duration-300 shadow-lg ${

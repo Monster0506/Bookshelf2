@@ -144,6 +144,22 @@ function AddArticle() {
           );
           return;
         }
+      } else if (filetype === "PLAINTEXT") {
+        // Process plaintext input directly
+        plaintext = source;
+        articleContent = source; // Use the same content for markdown since it's plaintext
+        const wordCount = source.split(/\s+/).length;
+        const readingTime = Math.ceil(wordCount / 200); // Assuming 200 words per minute
+        autoTags = generateTags(plaintext);
+        articleSummary = await summarizeContent(plaintext);
+        readInfo = {
+          text: source,
+          minutes: readingTime.toString(),
+          time: readingTime.toString(),
+          summary: articleSummary,
+          words: wordCount.toString(),
+        };
+        sourceURL = ""; // No URL for plaintext input
       }
 
       const folderName =
@@ -248,6 +264,7 @@ function AddArticle() {
               <option value="URL">URL</option>
               <option value="PDF">PDF</option>
               <option value="HTML">HTML</option>
+              <option value="PLAINTEXT">PLAINTEXT</option>
             </select>
           </motion.div>
           <motion.div
@@ -259,6 +276,15 @@ function AddArticle() {
               <input
                 type="text"
                 placeholder="Source (URL)"
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
+                required
+              />
+            ) : filetype === "PLAINTEXT" ? (
+              <textarea
+                type="text"
+                placeholder="Source (PLAINTEXT)"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
