@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { FaPlus, FaBook, FaTrash, FaProjectDiagram } from "react-icons/fa";
+import { FaPlus, FaBook, FaTrash, FaProjectDiagram, FaFolder } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 function Navbar() {
@@ -55,6 +55,9 @@ function Navbar() {
             </Link>
             <Link to="/" className="mr-4 flex items-center">
               <FaBook className="mr-2" />
+            </Link>
+            <Link to="/folders" className="mr-4 flex items-center">
+              <FaFolder className="mr-2" />
             </Link>
             <Link to="/trash" className="mr-4 flex items-center">
               <FaTrash className="mr-2" />
