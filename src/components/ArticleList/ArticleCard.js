@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { FaEllipsisV } from "react-icons/fa";
+import { FaEllipsisV, FaFolder } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import "../../css/ArticleCard.css"; // Custom CSS for additional animations
 const HideTagsAt = 2;
@@ -66,16 +66,20 @@ function ArticleCard({
         </Link>
       </div>
 
-      {article.folderId && (
-        <div className="text-sm text-gray-600 mb-3">
-          <span>Folder: </span>
+      {article.folderId && (console.log(article.folderId) || true) && (
+        <motion.div 
+          className="flex items-center text-sm text-gray-600 mb-3 bg-gray-100 rounded-lg p-2 w-fit"
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: "spring", stiffness: 160, damping: 12 }}
+        >
+          <FaFolder className="mr-2 text-blue-600" />
           <Link
             to={`/folders/${article.folderId}`}
             className="text-blue-600 hover:underline"
           >
             {article.folderName || "Unknown Folder"}
           </Link>
-        </div>
+        </motion.div>
       )}
 
       <div className="flex flex-wrap gap-3 mb-5">
