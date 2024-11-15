@@ -126,7 +126,7 @@ function FolderList() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {folders.map((folder) => (
-            
+
             <motion.div
               key={folder.id}
               className="bg-gray-50 p-4 rounded-lg shadow hover:shadow-lg transition-shadow"
@@ -140,18 +140,17 @@ function FolderList() {
                     <FaFolder className="mr-2 text-blue-500" />
                   )}
                   <Link
-                      to={`/folders/${folder.id}`}
-                      className="block group"
-                    >
-                  {folder.name}</Link>
+                    to={`/folders/${folder.id}`}
+                    className="block group"
+                  >
+                    {folder.name}</Link>
                 </h3>
                 <button
                   onClick={() => handleUpdateFolder(folder.id, !folder.public)}
-                  className={`px-4 py-2 rounded text-sm font-semibold shadow transition-colors flex items-center ${
-                    folder.public
-                      ? "bg-green-500 text-white hover:bg-green-600"
-                      : "bg-gray-500 text-white hover:bg-gray-600"
-                  }`}
+                  className={`px-4 py-2 rounded text-sm font-semibold shadow transition-colors flex items-center ${folder.public
+                    ? "bg-green-500 text-white hover:bg-green-600"
+                    : "bg-gray-500 text-white hover:bg-gray-600"
+                    }`}
                 >
                   {folder.public ? (
                     <>
