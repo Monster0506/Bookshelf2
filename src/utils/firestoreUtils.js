@@ -334,3 +334,22 @@ export const updateArticleFolder = async (articleId, newFolderId) => {
     throw error;
   }
 };
+
+// Fetch all articles
+export const fetchAllArticles = async () => {
+  try {
+    const articlesRef = collection(db, "articles");
+    const querySnapshot = await getDocs(articlesRef);
+    const articles = [];
+    querySnapshot.forEach((doc) => {
+      articles.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    return articles;
+  } catch (error) {
+    console.error("Error fetching articles:", error);
+    throw error;
+  }
+};
