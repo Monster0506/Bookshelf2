@@ -134,41 +134,56 @@ export const summarizeContent = (content, maxSentences = 3) => {
 
 export const fetchAndProcessContent = async (url) => {
   try {
+    console.log("Fetching content from URL:", url);
     const proxyUrl = "https://cors-proxy.tjraklovits.workers.dev/api/";
     const fullUrl = `${proxyUrl}${url}`;
+    console.log("Using proxy URL:", fullUrl);
 
     const response = await fetch(fullUrl, {
       method: "GET",
     });
 
     if (!response.ok) {
+      console.error("Fetch failed:", {
+        status: response.status,
+        statusText: response.statusText
+      });
       throw new Error(
         `Failed to fetch: ${response.status} ${response.statusText}`,
       );
     }
 
+    console.log("Successfully fetched content, parsing HTML...");
     const htmlContent = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, "text/html");
 
+    console.log("Extracting article content with Readability...");
     const reader = new Readability(doc);
     const article = reader.parse();
 
-    if (!article) throw new Error("Could not parse article content.");
+    if (!article) {
+      console.error("Readability failed to parse article");
+      throw new Error("Could not parse article content.");
+    }
 
+    console.log("Calculating reading metrics...");
     const wordCount = article.textContent.trim().split(/\s+/).length;
     const readingMinutes = Math.ceil(wordCount / 200);
     const readingTime = `${readingMinutes} minute${readingMinutes > 1 ? "s" : ""}`;
+    console.log("Reading metrics:", { wordCount, readingMinutes });
 
     // Generate a summary
+    console.log("Generating article summary...");
     const summary = summarizeContent(article.textContent);
 
+    console.log("Content processing complete");
     return {
       content: article.content,
       plaintext: article.textContent,
       readingTime,
       wordCount,
-      summary, // Include the generated summary
+      summary,
     };
   } catch (error) {
     console.error("Error fetching or processing content:", error);
@@ -177,7 +192,7 @@ export const fetchAndProcessContent = async (url) => {
       plaintext: "",
       readingTime: "",
       wordCount: 0,
-      summary: "", // Return empty summary in case of an error
+      summary: "",
     };
   }
 };

@@ -28,13 +28,117 @@ function AddArticle() {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const dropdownRef = React.createRef(null);
 
   useEffect(() => {
-    if (currentUser) {
-      fetchUserFolders(currentUser.uid).then((data) => setFolders(data));
-    }
+    const fetchFolders = async () => {
+      if (!currentUser) return;
+      try {
+        const userFolders = await fetchUserFolders(currentUser.uid);
+        console.log("Received folder data:", userFolders);
+        setFolders(userFolders);
+      } catch (error) {
+        console.error("Error fetching folders:", error);
+      }
+    };
+    fetchFolders();
   }, [currentUser]);
+
+  const toggleFolder = (folderId) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
+
+  // Render a single folder item
+  const FolderItem = ({ folder }) => {
+    const isExpanded = expandedFolders.has(folder.id);
+    const hasChildren = folder.children && folder.children.length > 0;
+    const isSelected = selectedFolder === folder.id;
+
+    return (
+      <div>
+        <div
+          className={`flex items-center px-4 py-2 cursor-pointer transition-colors duration-150 
+            ${isSelected ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+          onClick={() => {
+            setSelectedFolder(folder.id);
+            setIsDropdownOpen(false);
+          }}
+        >
+          <div className="flex items-center flex-1">
+            {hasChildren && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFolder(folder.id);
+                }}
+                className="mr-2 p-1 hover:bg-gray-200 rounded"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'transform rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+            {!hasChildren && <div className="w-6" />}
+            <div className="flex items-center">
+              <svg
+                className={`w-5 h-5 mr-2 ${hasChildren ? 'text-blue-500' : 'text-gray-500'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
+              </svg>
+              <span className="truncate">{folder.name}</span>
+            </div>
+          </div>
+          {hasChildren && (
+            <span className="text-xs text-gray-500 ml-2">
+              ({folder.children.length})
+            </span>
+          )}
+        </div>
+        {hasChildren && isExpanded && (
+          <div className="ml-4">
+            {folder.children.map((child) => (
+              <FolderItem key={child.id} folder={child} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
@@ -95,6 +199,7 @@ function AddArticle() {
       // URL Content Processing
       if (filetype === "URL") {
         try {
+          console.log("Processing URL content...");
           const {
             content,
             readingTime,
@@ -112,7 +217,9 @@ function AddArticle() {
             summary: articleSummary,
             words: wordCount.toString(),
           };
+          console.log("Successfully processed URL content");
         } catch (contentError) {
+          console.error("Failed to process URL content:", contentError);
           setError(
             `Failed to extract content from the URL. Please try a different URL. ${contentError}`,
           );
@@ -121,6 +228,7 @@ function AddArticle() {
       } else if ((filetype === "HTML" || filetype === "PDF") && file) {
         sourceURL = await uploadFileToStorage();
         try {
+          console.log("Processing file content...");
           const {
             content,
             readingTime,
@@ -138,7 +246,9 @@ function AddArticle() {
             summary: articleSummary,
             words: wordCount.toString(),
           };
+          console.log("Successfully processed file content");
         } catch (contentError) {
+          console.error("Failed to process file content:", contentError);
           setError(
             `Failed to extract content from the uploaded file. Please try again. ${contentError}`,
           );
@@ -162,9 +272,13 @@ function AddArticle() {
         sourceURL = ""; // No URL for plaintext input
       }
 
+      console.log("Selected folder:", selectedFolder);
       const folderName =
         folders.find((folder) => folder.id === selectedFolder)?.name || "";
-      const articleRef = await addArticle({
+      console.log("Folder name:", folderName);
+
+      console.log("Adding article to database...");
+      const result = await addArticle({
         title,
         filetype,
         public: publicStatus,
@@ -178,18 +292,28 @@ function AddArticle() {
         plaintext,
         read: readInfo,
         summary: articleSummary,
-        folderId: selectedFolder, // Add folder ID to the article
+        folderId: selectedFolder,
         folderName,
       });
 
+      if (!result || !result.id) {
+        throw new Error("Failed to get article ID after creation");
+      }
+
+      const articleId = result.id;
+      console.log("Article added successfully with ID:", articleId);
+
       // Update folder with the new article ID if a folder is selected
       if (selectedFolder) {
-        await updateFolderWithArticle(selectedFolder, articleRef.id);
+        console.log("Updating folder with article...");
+        await updateFolderWithArticle(selectedFolder, articleId);
+        console.log("Successfully updated folder");
       }
 
       setSuccess("Article added successfully!");
     } catch (error) {
-      setError("Failed to add article. Please try again.");
+      console.error("Failed to add article:", error);
+      setError(`Failed to add article: ${error.message}`);
     }
   };
 
@@ -346,26 +470,73 @@ function AddArticle() {
             <label className="text-gray-800">Public</label>
           </motion.div>
           <motion.div
-            className="mb-6"
+            className="mb-6 relative"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
+            ref={dropdownRef}
           >
             <label className="block text-lg font-medium mb-2">
               Select Folder
             </label>
-            <select
-              value={selectedFolder}
-              onChange={(e) => setSelectedFolder(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition-transform duration-200 ease-in-out hover:scale-105"
+            <div
+              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition-all duration-200 ease-in-out cursor-pointer flex items-center justify-between"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <option value="">No Folder</option>
-              {folders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
+                </svg>
+                <span>
+                  {selectedFolder
+                    ? folders.find((folder) => folder.id === selectedFolder)?.name || "No Folder"
+                    : "No Folder"}
+                </span>
+              </div>
+              <svg
+                className={`w-5 h-5 transform transition-transform duration-200 ${
+                  isDropdownOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+            {isDropdownOpen && (
+              <div className="absolute mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                <div className="max-h-60 overflow-y-auto">
+                  <div
+                    className="py-2 hover:bg-gray-100 cursor-pointer px-4"
+                    onClick={() => {
+                      setSelectedFolder(null);
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    No Folder
+                  </div>
+                  {folders.map((folder) => (
+                    <FolderItem key={folder.id} folder={folder} />
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
           <motion.button
             type="submit"

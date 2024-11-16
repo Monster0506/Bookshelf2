@@ -16,15 +16,18 @@ import {
 
 export async function addArticle(articleData) {
   try {
+    console.log("Adding article to Firestore:", articleData);
     const articlesCollectionRef = collection(db, "articles");
     const newArticle = {
       ...articleData,
       date: serverTimestamp(), // Set timestamp to the current time
     };
-    await addDoc(articlesCollectionRef, newArticle);
+    const docRef = await addDoc(articlesCollectionRef, newArticle);
+    console.log("Article added successfully with ID:", docRef.id);
+    return { id: docRef.id };
   } catch (error) {
     console.error("Error adding article:", error);
-    throw new Error("Failed to add article" + error);
+    throw new Error("Failed to add article: " + error);
   }
 }
 
@@ -184,6 +187,7 @@ export const deleteFolder = async (folderId) => {
 // Get folders for a specific user with nested structure
 export const fetchUserFolders = async (userId) => {
   try {
+    console.log("Fetching folders for user:", userId);
     const folderQuery = query(
       collection(db, "folders"),
       where("userid", "==", userId)
@@ -193,22 +197,35 @@ export const fetchUserFolders = async (userId) => {
     // Create a map of all folders
     const folderMap = new Map();
     folderSnapshot.docs.forEach(doc => {
-      folderMap.set(doc.id, { id: doc.id, ...doc.data(), children: [] });
+      const folderData = { id: doc.id, ...doc.data() };
+      console.log("Processing folder:", folderData);
+      folderMap.set(doc.id, { ...folderData, children: [] });
     });
+
+    console.log("Folder map created:", Array.from(folderMap.entries()));
 
     // Organize into tree structure
     const rootFolders = [];
     folderMap.forEach(folder => {
-      if (folder.parentId) {
+      console.log("Processing folder for hierarchy:", folder);
+      if (folder.parentId && folderMap.has(folder.parentId)) {
         const parent = folderMap.get(folder.parentId);
+        console.log("Found parent folder:", parent);
         if (parent) {
           parent.children.push(folder);
+          console.log("Added folder to parent's children:", {
+            parentId: parent.id,
+            childId: folder.id,
+            parentChildren: parent.children
+          });
         }
       } else {
         rootFolders.push(folder);
+        console.log("Added root folder:", folder);
       }
     });
 
+    console.log("Final root folders:", rootFolders);
     return rootFolders;
   } catch (error) {
     console.error("Error fetching folders: ", error);
@@ -218,30 +235,38 @@ export const fetchUserFolders = async (userId) => {
 
 export const updateFolderWithArticle = async (folderId, articleId, remove = false) => {
   try {
+    console.log(`Updating folder ${folderId} with article ${articleId}, remove: ${remove}`);
     const folderRef = doc(db, "folders", folderId);
     const articleRef = doc(db, "articles", articleId);
 
     // Get the current folder data
     const folderDoc = await getDoc(folderRef);
     if (!folderDoc.exists()) {
+      console.error("Folder not found:", folderId);
       throw new Error("Folder not found");
     }
+    console.log("Current folder data:", folderDoc.data());
 
     // Update the folder's articles array
     const currentArticles = folderDoc.data().articles || [];
+    console.log("Current articles in folder:", currentArticles);
     let updatedArticles;
 
     if (remove) {
       updatedArticles = currentArticles.filter(id => id !== articleId);
+      console.log("Removing article. Updated articles:", updatedArticles);
     } else {
       if (!currentArticles.includes(articleId)) {
         updatedArticles = [...currentArticles, articleId];
+        console.log("Adding article. Updated articles:", updatedArticles);
       } else {
+        console.log("Article already exists in folder");
         updatedArticles = currentArticles;
       }
     }
 
     // Update both the folder and article documents
+    console.log("Updating folder and article documents...");
     await Promise.all([
       updateDoc(folderRef, {
         articles: updatedArticles
@@ -251,9 +276,10 @@ export const updateFolderWithArticle = async (folderId, articleId, remove = fals
         folderName: remove ? null : folderDoc.data().name
       })
     ]);
+    console.log("Successfully updated folder and article");
   } catch (error) {
     console.error("Error updating folder with article: ", error);
-    throw new Error("Failed to update folder with article.");
+    throw new Error("Failed to update folder with article: " + error.message);
   }
 };
 
