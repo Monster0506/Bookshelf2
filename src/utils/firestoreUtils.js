@@ -366,8 +366,9 @@ export const findBacklinks = async (articleId) => {
       // Skip if it's the same article
       if (doc.id === articleId) return;
       
-      // Check if notes contain a link to the target article
-      if (article.notes && article.notes.includes(`@article:${articleId}`)) {
+      // Check if note contains a link to the target article
+      // We use article.note (singular) as that's how it's stored in the database
+      if (article.note && article.note.includes(`@article:${articleId}`)) {
         backlinks.push({
           id: doc.id,
           title: article.title,
