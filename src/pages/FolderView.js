@@ -7,10 +7,12 @@ import {
   updateFolderWithArticle,
   deleteFolder,
   updateFolder,
+  addFolder,
 } from "../utils/firestoreUtils";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaLock, FaLockOpen, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBook } from "react-icons/fa";
+import { FaLock, FaLockOpen, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBook, FaFolder, FaFolderOpen, FaPlus } from "react-icons/fa";
 import "../css/FolderView.css";
+import { serverTimestamp } from "firebase/firestore";
 
 function FolderView() {
   const folderId = useParams().id;
@@ -22,19 +24,47 @@ function FolderView() {
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [subfolders, setSubfolders] = useState([]);
+  const [parentFolder, setParentFolder] = useState(null);
+  const [showAddSubfolder, setShowAddSubfolder] = useState(false);
+  const [newSubfolderName, setNewSubfolderName] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const articlesData = await fetchArticlesInFolder(folderId);
         const folderData = await fetchFolder(folderId);
+        
         if (!folderData.public && !currentUser) {
           setError("This folder is private. Please log in to view it.");
           setLoading(false);
           return;
         }
+        
         setFolder(folderData);
         setArticles(articlesData);
+
+        // Fetch parent folder if it exists
+        if (folderData.parentId) {
+          const parentData = await fetchFolder(folderData.parentId);
+          setParentFolder(parentData);
+        } else {
+          setParentFolder(null);
+        }
+        
+        // Set subfolders if they exist
+        if (folderData.subfolders && folderData.subfolders.length > 0) {
+          const subfoldersData = await Promise.all(
+            folderData.subfolders.map(async childId => {
+              return await fetchFolder(childId);
+            })
+          );
+          const validSubfolders = subfoldersData.filter(Boolean);
+          setSubfolders(validSubfolders);
+        } else {
+          setSubfolders([]);
+        }
       } catch (err) {
         setError("Failed to load folder.");
       } finally {
@@ -78,6 +108,45 @@ function FolderView() {
       }));
     } catch (err) {
       setError("Failed to update folder privacy.");
+    }
+  };
+
+  const handleAddSubfolder = async (e) => {
+    e.preventDefault();
+    if (!currentUser || !newSubfolderName.trim()) return;
+
+    try {
+      // Create new subfolder
+      const newFolderId = await addFolder(
+        newSubfolderName,
+        currentUser.uid,
+        isPublic,
+        folderId,
+        { color: folder.color }
+      );
+
+      // Update parent folder's subfolders array
+      const updatedSubfolders = [...(folder.subfolders || []), newFolderId];
+      await updateFolder(folder.id, {
+        subfolders: updatedSubfolders,
+        updatedAt: serverTimestamp()
+      });
+
+      // Update local state
+      const newSubfolderData = await fetchFolder(newFolderId);
+      setSubfolders(prev => [...prev, newSubfolderData]);
+      setFolder(prev => ({
+        ...prev,
+        subfolders: updatedSubfolders
+      }));
+
+      // Reset form
+      setNewSubfolderName("");
+      setIsPublic(false);
+      setShowAddSubfolder(false);
+    } catch (error) {
+      console.error("Error creating subfolder:", error);
+      setError("Failed to create subfolder.");
     }
   };
 
@@ -172,7 +241,7 @@ function FolderView() {
                     Articles ({articles.length})
                   </h3>
                   {articles.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                       {articles.map((article) => (
                         <motion.div
                           key={article.id}
@@ -199,7 +268,7 @@ function FolderView() {
                                   e.preventDefault();
                                   handleRemoveArticle(article.id);
                                 }}
-                                className="absolute top-4 right-4 p-2 bg-red-100 text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
                               >
                                 <FaTimes />
                               </motion.button>
@@ -209,16 +278,174 @@ function FolderView() {
                       ))}
                     </div>
                   ) : (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-center py-12 bg-gray-50 rounded-lg"
-                    >
-                      <p className="text-gray-600 text-lg">
-                        No articles in this folder yet.
-                      </p>
-                    </motion.div>
+                    <p className="text-gray-500 mb-8">No articles in this folder yet.</p>
                   )}
+
+                  {/* Parent Folder Section */}
+                  {parentFolder && (
+                    <div className="border-t border-gray-200 pt-6 mb-8">
+                      <h3 className="text-2xl font-semibold text-gray-800 mb-4">
+                        Parent Folder
+                      </h3>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="relative group"
+                      >
+                        <Link
+                          to={`/folders/${parentFolder.id}`}
+                          className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          <div className="flex items-center mb-2">
+                            <FaFolderOpen className="text-xl mr-2" style={{ color: parentFolder.color || '#3B82F6' }} />
+                            <h4 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                              {parentFolder.name}
+                            </h4>
+                          </div>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <span className="mr-4">
+                              {parentFolder.articles?.length || 0} articles
+                            </span>
+                            {parentFolder.public ? (
+                              <div className="flex items-center">
+                                <FaLockOpen className="mr-1" />
+                                <span>Public</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center">
+                                <FaLock className="mr-1" />
+                                <span>Private</span>
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      </motion.div>
+                    </div>
+                  )}
+
+                  {/* Subfolders Section */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-2xl font-semibold text-gray-800">
+                        Subfolders {subfolders.length > 0 && `(${subfolders.length})`}
+                      </h3>
+                      {currentUser && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowAddSubfolder(!showAddSubfolder)}
+                          className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          <FaPlus className="mr-2" />
+                          Add Subfolder
+                        </motion.button>
+                      )}
+                    </div>
+
+                    {showAddSubfolder && (
+                      <motion.form
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        onSubmit={handleAddSubfolder}
+                        className="mb-8 p-6 bg-white border border-gray-200 rounded-lg shadow-md"
+                      >
+                        <div className="mb-4">
+                          <label htmlFor="subfolderName" className="block text-gray-700 font-medium mb-2">
+                            Subfolder Name
+                          </label>
+                          <input
+                            type="text"
+                            id="subfolderName"
+                            value={newSubfolderName}
+                            onChange={(e) => setNewSubfolderName(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter subfolder name"
+                            required
+                          />
+                        </div>
+                        <div className="mb-4">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={isPublic}
+                              onChange={(e) => setIsPublic(e.target.checked)}
+                              className="mr-2"
+                            />
+                            <span className="text-gray-700">Make folder public</span>
+                          </label>
+                        </div>
+                        <div className="flex justify-end space-x-4">
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setShowAddSubfolder(false);
+                              setNewSubfolderName("");
+                              setIsPublic(false);
+                            }}
+                            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                          >
+                            Cancel
+                          </motion.button>
+                          <motion.button
+                            type="submit"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                          >
+                            Create Subfolder
+                          </motion.button>
+                        </div>
+                      </motion.form>
+                    )}
+
+                    {subfolders.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {subfolders.map((subfolder) => (
+                          <motion.div
+                            key={subfolder.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="relative group"
+                          >
+                            <Link
+                              to={`/folders/${subfolder.id}`}
+                              className="block p-6 bg-white border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                            >
+                              <div className="flex items-center mb-2">
+                                <FaFolder className="text-xl mr-2" style={{ color: subfolder.color || '#3B82F6' }} />
+                                <h4 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                                  {subfolder.name}
+                                </h4>
+                              </div>
+                              <div className="flex items-center text-sm text-gray-500">
+                                <span className="mr-4">
+                                  {subfolder.articles?.length || 0} articles
+                                </span>
+                                {subfolder.public ? (
+                                  <div className="flex items-center">
+                                    <FaLockOpen className="mr-1" />
+                                    <span>Public</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center">
+                                    <FaLock className="mr-1" />
+                                    <span>Private</span>
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 mb-8">No subfolders in this folder yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

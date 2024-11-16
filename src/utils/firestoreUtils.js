@@ -31,7 +31,7 @@ export async function addArticle(articleData) {
 // Add a new folder
 export const addFolder = async (folderName, userId, isPublic, parentId = null, customization = {}) => {
   try {
-    await addDoc(collection(db, "folders"), {
+    const folderRef = await addDoc(collection(db, "folders"), {
       name: folderName,
       userid: userId,
       public: isPublic,
@@ -44,6 +44,7 @@ export const addFolder = async (folderName, userId, isPublic, parentId = null, c
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    return folderRef.id;
   } catch (error) {
     console.error("Error adding folder: ", error);
     throw error;
@@ -276,7 +277,13 @@ export const fetchFolder = async (folderId) => {
   try {
     const folderRef = doc(db, "folders", folderId);
     const folderSnapshot = await getDoc(folderRef);
-    return folderSnapshot.data();
+    if (!folderSnapshot.exists()) {
+      return null;
+    }
+    return {
+      id: folderSnapshot.id,
+      ...folderSnapshot.data()
+    };
   } catch (error) {
     console.error("Error fetching folder: ", error);
     throw new Error("Failed to fetch folder.");
