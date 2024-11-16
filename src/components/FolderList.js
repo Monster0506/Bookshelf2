@@ -12,6 +12,7 @@ import {
   FaPlus,
   FaPalette,
   FaRegClone,
+  FaTrash,
 } from "react-icons/fa";
 import {
   fetchUserFolders,
@@ -211,7 +212,7 @@ function FolderList() {
                     }`}
                   >
                     <Link
-                      to={`/article/${article.id}`}
+                      to={`/articles/${article.id}`}
                       className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
                     >
                       <FaBook className="flex-shrink-0" />
@@ -230,7 +231,6 @@ function FolderList() {
 
   const renderFolder = (folder, level = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
-    const hasChildren = folder.children?.length > 0;
     
     return (
       <div key={folder.id} className="w-full">
@@ -242,7 +242,7 @@ function FolderList() {
               className={`w-full ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
             >
               <div
-                className={`flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer`}
+                className={`flex items-center p-3 hover:bg-gray-50 rounded-lg`}
                 style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
               >
                 <div className="flex items-center flex-grow">
@@ -252,23 +252,39 @@ function FolderList() {
                   >
                     {isExpanded ? <FaChevronDown /> : <FaChevronUp />}
                   </button>
-                  <FaFolder
-                    className="mr-2 flex-shrink-0"
-                    style={{ color: folder.color || FOLDER_COLORS[0].value }}
-                  />
-                  <span className="truncate font-medium">{folder.name}</span>
+                  <Link
+                    to={`/folders/${folder.id}`}
+                    className="flex items-center flex-grow group"
+                  >
+                    <span className="mr-2 text-gray-500 group-hover:text-gray-700">
+                      {isExpanded ? <FaFolderOpen style={{ color: folder.color }} /> : <FaFolder style={{ color: folder.color }} />}
+                    </span>
+                    <span className="text-gray-700 group-hover:text-gray-900">{folder.name}</span>
+                  </Link>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteFolder(folder.id);
+                      }}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
-              {isExpanded && renderArticles(folder.id)}
+              {isExpanded && (
+                <div className="space-y-1">
+                  {renderArticles(folder.id)}
+                  {folder.children?.map(childFolder => renderFolder(childFolder, level + 1))}
+                </div>
+              )}
               {provided.placeholder}
             </div>
           )}
         </Droppable>
-        {hasChildren && (
-          <div className="ml-4">
-            {folder.children.map(child => renderFolder(child, level + 1))}
-          </div>
-        )}
       </div>
     );
   };

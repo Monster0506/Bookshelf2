@@ -34,7 +34,7 @@ const ArticleLinks = ({ currentArticle, outgoingLinks }) => {
           <ul className="space-y-1">
             {outgoingLinks.map((link) => (
               <li key={link.id} className="text-blue-600 hover:text-blue-800">
-                <Link to={`/article/${link.id}`} className="hover:underline">
+                <Link to={`/articles/${link.id}`} className="hover:underline">
                   {link.title}
                 </Link>
               </li>
@@ -52,7 +52,7 @@ const ArticleLinks = ({ currentArticle, outgoingLinks }) => {
           <ul className="space-y-1">
             {backlinks.map((link) => (
               <li key={link.id} className="text-blue-600 hover:text-blue-800">
-                <Link to={`/article/${link.id}`} className="hover:underline">
+                <Link to={`/articles/${link.id}`} className="hover:underline">
                   {link.title}
                 </Link>
               </li>
