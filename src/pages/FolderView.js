@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -10,9 +10,8 @@ import {
   addFolder,
 } from "../utils/firestoreUtils";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaLock, FaLockOpen, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBook, FaFolder, FaFolderOpen, FaPlus } from "react-icons/fa";
+import { FaLock, FaLockOpen, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBook, FaFolder, FaFolderOpen, FaPlus, FaShare, FaCopy, FaCheck } from "react-icons/fa";
 import "../css/FolderView.css";
-import { serverTimestamp } from "firebase/firestore";
 
 function FolderView() {
   const folderId = useParams().id;
@@ -28,13 +27,18 @@ function FolderView() {
   const [parentFolder, setParentFolder] = useState(null);
   const [showAddSubfolder, setShowAddSubfolder] = useState(false);
   const [newSubfolderName, setNewSubfolderName] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isAddingSubfolder, setIsAddingSubfolder] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const shareUrlRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("Fetching folder data for ID:", folderId);
         const articlesData = await fetchArticlesInFolder(folderId);
         const folderData = await fetchFolder(folderId);
+        console.log("Folder data received:", folderData);
         
         if (!folderData.public && !currentUser) {
           setError("This folder is private. Please log in to view it.");
@@ -47,25 +51,35 @@ function FolderView() {
 
         // Fetch parent folder if it exists
         if (folderData.parentId) {
+          console.log("Fetching parent folder:", folderData.parentId);
           const parentData = await fetchFolder(folderData.parentId);
+          console.log("Parent folder data:", parentData);
           setParentFolder(parentData);
         } else {
           setParentFolder(null);
         }
         
         // Set subfolders if they exist
+        console.log("Checking for subfolders in:", folderData);
         if (folderData.subfolders && folderData.subfolders.length > 0) {
+          console.log("Found subfolders:", folderData.subfolders);
           const subfoldersData = await Promise.all(
             folderData.subfolders.map(async childId => {
-              return await fetchFolder(childId);
+              console.log("Fetching subfolder:", childId);
+              const subfolder = await fetchFolder(childId);
+              console.log("Subfolder data:", subfolder);
+              return subfolder;
             })
           );
           const validSubfolders = subfoldersData.filter(Boolean);
+          console.log("Valid subfolders:", validSubfolders);
           setSubfolders(validSubfolders);
         } else {
+          console.log("No subfolders found in folder data");
           setSubfolders([]);
         }
       } catch (err) {
+        console.error("Error loading folder:", err);
         setError("Failed to load folder.");
       } finally {
         setLoading(false);
@@ -73,6 +87,13 @@ function FolderView() {
     };
     fetchData();
   }, [folderId, currentUser]);
+
+  useEffect(() => {
+    if (copied) {
+      const timer = setTimeout(() => setCopied(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copied]);
 
   const handleDeleteFolder = async () => {
     if (!currentUser) return;
@@ -115,39 +136,45 @@ function FolderView() {
     e.preventDefault();
     if (!currentUser || !newSubfolderName.trim()) return;
 
+    setIsAddingSubfolder(true);
     try {
       // Create new subfolder
-      const newFolderId = await addFolder(
-        newSubfolderName,
+      const { id: newSubfolderId } = await addFolder(
+        newSubfolderName.trim(),
         currentUser.uid,
-        isPublic,
+        folder.public,
         folderId,
         { color: folder.color }
       );
 
       // Update parent folder's subfolders array
-      const updatedSubfolders = [...(folder.subfolders || []), newFolderId];
-      await updateFolder(folder.id, {
+      const updatedSubfolders = [...(folder.subfolders || []), newSubfolderId];
+      await updateFolder(folderId, {
         subfolders: updatedSubfolders,
-        updatedAt: serverTimestamp()
+        updatedAt: new Date(),
       });
 
       // Update local state
-      const newSubfolderData = await fetchFolder(newFolderId);
+      const newSubfolderData = await fetchFolder(newSubfolderId);
       setSubfolders(prev => [...prev, newSubfolderData]);
       setFolder(prev => ({
         ...prev,
         subfolders: updatedSubfolders
       }));
-
-      // Reset form
       setNewSubfolderName("");
-      setIsPublic(false);
       setShowAddSubfolder(false);
     } catch (error) {
-      console.error("Error creating subfolder:", error);
+      console.error("Error adding subfolder:", error);
       setError("Failed to create subfolder.");
+    } finally {
+      setIsAddingSubfolder(false);
     }
+  };
+
+  const handleCopyShareLink = () => {
+    const shareUrl = `${window.location.origin}/folders/${folderId}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
   };
 
   if (loading) {
@@ -187,6 +214,17 @@ function FolderView() {
                   </h2>
                   {currentUser && (
                     <div className="flex items-center space-x-4">
+                      {folder?.public && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowShareModal(true)}
+                          className="flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+                        >
+                          <FaShare className="mr-2" />
+                          Share
+                        </motion.button>
+                      )}
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -241,7 +279,7 @@ function FolderView() {
                     Articles ({articles.length})
                   </h3>
                   {articles.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {articles.map((article) => (
                         <motion.div
                           key={article.id}
@@ -278,15 +316,24 @@ function FolderView() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 mb-8">No articles in this folder yet.</p>
+                    <div className="text-center py-8 text-gray-500">
+                      No articles in this folder yet.
+                    </div>
                   )}
+                </div>
+
+                {/* Related Folders Section */}
+                <div className="border-t border-gray-200 pt-6 mt-8">
+                  <h3 className="text-2xl font-semibold text-gray-800 mb-6">
+                    Related Folders
+                  </h3>
 
                   {/* Parent Folder Section */}
                   {parentFolder && (
-                    <div className="border-t border-gray-200 pt-6 mb-8">
-                      <h3 className="text-2xl font-semibold text-gray-800 mb-4">
+                    <div className="mb-8">
+                      <h4 className="text-xl font-semibold text-gray-700 mb-4">
                         Parent Folder
-                      </h3>
+                      </h4>
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -325,16 +372,16 @@ function FolderView() {
                   )}
 
                   {/* Subfolders Section */}
-                  <div className="border-t border-gray-200 pt-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-2xl font-semibold text-gray-800">
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-xl font-semibold text-gray-700">
                         Subfolders {subfolders.length > 0 && `(${subfolders.length})`}
-                      </h3>
-                      {currentUser && (
+                      </h4>
+                      {currentUser && !folder?.parentId && (
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => setShowAddSubfolder(!showAddSubfolder)}
+                          onClick={() => setShowAddSubfolder(true)}
                           className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                         >
                           <FaPlus className="mr-2" />
@@ -343,64 +390,51 @@ function FolderView() {
                       )}
                     </div>
 
-                    {showAddSubfolder && (
-                      <motion.form
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        onSubmit={handleAddSubfolder}
-                        className="mb-8 p-6 bg-white border border-gray-200 rounded-lg shadow-md"
-                      >
-                        <div className="mb-4">
-                          <label htmlFor="subfolderName" className="block text-gray-700 font-medium mb-2">
-                            Subfolder Name
-                          </label>
-                          <input
-                            type="text"
-                            id="subfolderName"
-                            value={newSubfolderName}
-                            onChange={(e) => setNewSubfolderName(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter subfolder name"
-                            required
-                          />
-                        </div>
-                        <div className="mb-4">
-                          <label className="flex items-center">
+                    {/* Add Subfolder Form */}
+                    <AnimatePresence>
+                      {showAddSubfolder && (
+                        <motion.form
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          onSubmit={handleAddSubfolder}
+                          className="mb-6"
+                        >
+                          <div className="flex gap-4">
                             <input
-                              type="checkbox"
-                              checked={isPublic}
-                              onChange={(e) => setIsPublic(e.target.checked)}
-                              className="mr-2"
+                              type="text"
+                              value={newSubfolderName}
+                              onChange={(e) => setNewSubfolderName(e.target.value)}
+                              placeholder="Enter subfolder name"
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              disabled={isAddingSubfolder}
                             />
-                            <span className="text-gray-700">Make folder public</span>
-                          </label>
-                        </div>
-                        <div className="flex justify-end space-x-4">
-                          <motion.button
-                            type="button"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setShowAddSubfolder(false);
-                              setNewSubfolderName("");
-                              setIsPublic(false);
-                            }}
-                            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                          >
-                            Cancel
-                          </motion.button>
-                          <motion.button
-                            type="submit"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                          >
-                            Create Subfolder
-                          </motion.button>
-                        </div>
-                      </motion.form>
-                    )}
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              type="submit"
+                              disabled={isAddingSubfolder || !newSubfolderName.trim()}
+                              className={`px-6 py-2 rounded-lg text-white font-medium transition-colors ${
+                                isAddingSubfolder || !newSubfolderName.trim()
+                                  ? "bg-gray-400"
+                                  : "bg-blue-500 hover:bg-blue-600"
+                              }`}
+                            >
+                              {isAddingSubfolder ? "Creating..." : "Create"}
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              type="button"
+                              onClick={() => setShowAddSubfolder(false)}
+                              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                            >
+                              Cancel
+                            </motion.button>
+                          </div>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
 
                     {subfolders.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -443,70 +477,154 @@ function FolderView() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500 mb-8">No subfolders in this folder yet.</p>
+                      <div className="text-center py-8 text-gray-500">
+                        No subfolders.
+                      </div>
                     )}
                   </div>
+
+                  {!parentFolder && subfolders.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No related folders.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Share Modal */}
+            <AnimatePresence>
+              {showShareModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-semibold text-gray-900">Share Folder</h3>
+                      <button
+                        onClick={() => setShowShareModal(false)}
+                        className="text-gray-400 hover:text-gray-500 transition-colors"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+
+                    <div className="mb-6">
+                      <p className="text-gray-600 mb-4">
+                        Share this folder with others by copying the link below:
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={shareUrlRef}
+                          type="text"
+                          readOnly
+                          value={`${window.location.origin}/folders/${folderId}`}
+                          className="flex-1 p-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                        />
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleCopyShareLink}
+                          className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                        >
+                          {copied ? (
+                            <>
+                              <FaCheck className="mr-2" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <FaCopy className="mr-2" />
+                              Copy
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </div>
+
+                    <div className="text-gray-500 text-sm">
+                      <p>Note: Only people with the link can view this folder.</p>
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowShareModal(false)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        Close
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">
+                        Delete Folder?
+                      </h3>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="text-gray-400 hover:text-gray-500 transition-colors"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+
+                    <p className="text-gray-600 mb-6">
+                      Are you sure you want to delete this folder? This action cannot be
+                      undone.
+                    </p>
+                    <div className="flex justify-end space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                        disabled={isDeleting}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteFolder();
+                        }}
+                        disabled={isDeleting}
+                        className={`px-4 py-2 bg-red-500 text-white rounded-lg font-medium flex items-center ${
+                          isDeleting ? 'opacity-75 cursor-not-allowed' : 'hover:bg-red-600'
+                        }`}
+                      >
+                        {isDeleting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                            Deleting...
+                          </>
+                        ) : (
+                          'Delete'
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </motion.div>
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-4">
-                Delete Folder?
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this folder? This action cannot be
-                undone.
-              </p>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    handleDeleteFolder();
-                  }}
-                  disabled={isDeleting}
-                  className={`px-4 py-2 bg-red-500 text-white rounded-lg font-medium flex items-center ${
-                    isDeleting ? 'opacity-75 cursor-not-allowed' : 'hover:bg-red-600'
-                  }`}
-                >
-                  {isDeleting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                      Deleting...
-                    </>
-                  ) : (
-                    'Delete'
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -31,20 +31,20 @@ export async function addArticle(articleData) {
 // Add a new folder
 export const addFolder = async (folderName, userId, isPublic, parentId = null, customization = {}) => {
   try {
-    const folderRef = await addDoc(collection(db, "folders"), {
+    const docRef = await addDoc(collection(db, "folders"), {
       name: folderName,
       userid: userId,
       public: isPublic,
       articles: [],
-      parentId: parentId, // For nested folders
-      subfolders: [], // Array of subfolder IDs
-      color: customization.color || "#3B82F6", // Default blue
-      icon: customization.icon || "folder", // Default folder icon
-      template: customization.template || null, // For folder templates
+      parentId: parentId,
+      subfolders: [],
+      color: customization.color || "#3B82F6",
+      icon: customization.icon || "folder",
+      template: customization.template || null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    return folderRef.id;
+    return { id: docRef.id };
   } catch (error) {
     console.error("Error adding folder: ", error);
     throw error;
