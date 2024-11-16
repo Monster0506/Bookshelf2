@@ -192,6 +192,28 @@ function ContentSection({
     });
   }, [highlights, currentPage]);
 
+  const handleHighlightClick = useCallback((event) => {
+    const highlightSpan = event.target.closest('[data-highlight-id]');
+    if (!highlightSpan) return;
+
+    const highlightId = highlightSpan.dataset.highlightId;
+    const rect = highlightSpan.getBoundingClientRect();
+    
+    setSelectedHighlight(highlightId);
+    setPopupPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10
+    });
+  }, []);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+
+    content.addEventListener('click', handleHighlightClick);
+    return () => content.removeEventListener('click', handleHighlightClick);
+  }, [handleHighlightClick]);
+
   useEffect(() => {
     renderHighlights();
   }, [renderHighlights]);
@@ -286,8 +308,10 @@ function ContentSection({
       />
       <div
         ref={contentRef}
-        className="markdown-content relative"
-        dangerouslySetInnerHTML={{ __html: renderPageContent() }}
+        className="prose max-w-none"
+        dangerouslySetInnerHTML={{
+          __html: DOMPurify.sanitize(renderPageContent()),
+        }}
       />
       <Pagination
         currentPage={currentPage}
@@ -319,15 +343,7 @@ function ContentSection({
         onEditNote={editNote}
         onDeleteNote={deleteNote}
       />
-      <NotesEditor
-        notes={notes}
-        setNotes={setNotes}
-        saveNotes={saveNotes}
-        canEdit={canEdit}
-        saving={saving}
-        articleId={article.id}
-        articleTitle={article.title}
-      />
+
     </motion.div>
   );
 }

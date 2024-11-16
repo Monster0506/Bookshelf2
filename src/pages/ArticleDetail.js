@@ -136,19 +136,21 @@ function ArticleDetail() {
     fetchArticle();
   }, [id, currentUser]);
 
-  const saveNotes = async () => {
-    if (notes && canEdit) {
+  const saveNotes = async (noteText) => {
+    if (canEdit) {
+      setSaving(true);
       try {
         const articleRef = doc(db, "articles", id);
         await updateDoc(articleRef, {
-          note: notes,
+          note: noteText,
         });
-        setArticle((prevArticle) => ({ ...prevArticle, note: notes }));
+        setArticle((prevArticle) => ({ ...prevArticle, note: noteText }));
+        setNotes(noteText); // Update the notes state
         console.log("Notes saved successfully.");
       } catch (error) {
         console.error("Error saving notes:", error);
       } finally {
-        setSaving(false); // Reset saving state
+        setSaving(false);
       }
     }
   };
@@ -213,7 +215,7 @@ function ArticleDetail() {
 
   const debouncedSaveNotes = useDebouncedCallback(() => {
     setSaving(true);
-    saveNotes();
+    saveNotes(notes);
   }, 1000); // Save notes with a 1-second debounce delay
   if (loading) {
     return <Loading loading="Loading ..." />;
@@ -239,8 +241,8 @@ function ArticleDetail() {
       />
       <div className="container mx-auto px-4 py-6 relative">
         <div className="flex flex-col lg:flex-row gap-6">
-          {activeTab === "content" && (
-            <div className={`flex-grow ${showSidebar ? "lg:w-2/3" : "w-full"}`}>
+          <div className="flex-grow overflow-auto">
+            {activeTab === "content" && (
               <ActiveReadingProvider articleId={id}>
                 <ContentSection
                   article={article}
@@ -256,7 +258,6 @@ function ArticleDetail() {
                   setTags={setTags}
                   createdAt={createdAt}
                   showSummary={showSummary}
-                  saveNotes={saveNotes}
                   setShowSummary={setShowSummary}
                   relatedArticles={relatedArticles}
                   canEdit={canEdit}
@@ -267,27 +268,26 @@ function ArticleDetail() {
                   saving={saving}
                 />
               </ActiveReadingProvider>
-            </div>
-          )}
-
-          {activeTab === "notes" && (
-            <div className="flex-grow">
-              <NotesEditor
-                notes={notes}
-                setNotes={setNotes}
-                saveNotes={saveNotes}
-                canEdit={canEdit}
-                saving={saving}
-              />
-            </div>
-          )}
-
-          {activeTab === "related" && (
-            <div className="flex-grow">
-              <RelatedArticles relatedArticles={relatedArticles} />
-            </div>
-          )}
-
+            )}
+            {activeTab === "notes" && (
+              <div className="p-4">
+                <NotesEditor
+                  notes={notes}
+                  setNotes={setNotes}
+                  saveNotes={saveNotes}
+                  canEdit={canEdit}
+                  saving={saving}
+                  articleId={article.id}
+                  articleTitle={article.title}
+                />
+              </div>
+            )}
+            {activeTab === "related" && (
+              <div className="flex-grow">
+                <RelatedArticles relatedArticles={relatedArticles} />
+              </div>
+            )}
+          </div>
           {showSidebar && (
             <div className="w-96 sticky top-16">
               <Sidebar
