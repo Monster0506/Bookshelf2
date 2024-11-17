@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import DOMPurify from "dompurify";
 import debounce from "lodash.debounce";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaFileAlt, FaLink, FaStickyNote, FaChartLine } from "react-icons/fa";
 import "react-markdown-editor-lite/lib/index.css";
 import RelatedArticles from "./Content/RelatedArticles";
 import NotesEditor from "./Content/NotesEditor";
@@ -14,6 +14,8 @@ import HighlightManager from "./ActiveReading/HighlightManager";
 import MarginNotes from "./ActiveReading/MarginNotes";
 import HighlightPopup from "./ActiveReading/HighlightPopup";
 import { useActiveReading } from "./ActiveReading/ActiveReadingProvider";
+import Statistics from "./Content/Statistics";
+import SourceAttribution from "./Content/SourceAttribution";
 
 function ContentSection({
   article,
@@ -57,6 +59,14 @@ function ContentSection({
 
   const [selectedHighlight, setSelectedHighlight] = useState(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [activeTab, setActiveTab] = useState('content');
+
+  const tabs = [
+    { id: 'content', label: 'Content', icon: FaFileAlt },
+    { id: 'links', label: 'Links', icon: FaLink },
+    { id: 'notes', label: 'Notes', icon: FaStickyNote },
+    { id: 'stats', label: 'Statistics', icon: FaChartLine },
+  ];
 
   const handleTextSelection = useCallback(async () => {
     if (!isHighlighting) return;
@@ -289,23 +299,7 @@ function ContentSection({
   };
 
   return (
-    <motion.div
-      className="content-section relative"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Header title={title} editing={editing} setTitle={setTitle} />
-      {createdAt && (
-        <p className="created-at">
-          Created: {format(new Date(createdAt.seconds * 1000), "PPp")}
-        </p>
-      )}
-      <SummarySection
-        showSummary={showSummary}
-        setShowSummary={setShowSummary}
-        summary={article.summary}
-      />
+    <div className="flex flex-col gap-4">
       <div
         ref={contentRef}
         className="prose max-w-none"
@@ -313,38 +307,8 @@ function ContentSection({
           __html: DOMPurify.sanitize(renderPageContent()),
         }}
       />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        handlePageChange={handlePageChange}
-        setCurrentPage={setCurrentPage}
-      />
-      
-      <AnimatePresence>
-        {selectedHighlight && (
-          <HighlightPopup
-            position={popupPosition}
-            onRemove={() => handleRemoveHighlight(selectedHighlight)}
-            onClose={() => setSelectedHighlight(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      <HighlightManager
-        activeHighlightColor={activeHighlightColor}
-        setActiveHighlightColor={setActiveHighlightColor}
-        isHighlighting={isHighlighting}
-        setIsHighlighting={setIsHighlighting}
-        onAddNote={handleAddNote}
-      />
-      
-      <MarginNotes
-        notes={marginNotes}
-        onEditNote={editNote}
-        onDeleteNote={deleteNote}
-      />
-
-    </motion.div>
+      <SourceAttribution article={article} />
+    </div>
   );
 }
 

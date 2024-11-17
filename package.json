@@ -36,7 +36,6 @@
     "louvain": "^1.2.0",
     "marked": "^15.0.0",
     "mermaid": "^11.2.1",
-    "natural": "^8.0.1",
     "next": "^14.2.13",
     "next-remove-imports": "^1.0.12",
     "pdf-lib": "^1.17.1",

@@ -1,26 +1,29 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
+import DOMPurify from "dompurify";
+import debounce from "lodash.debounce";
+import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import "react-markdown-editor-lite/lib/index.css";
 import { useAuth } from "../contexts/AuthContext";
+import { fetchArticleById, saveArticleNotes } from "../utils/firestoreUtils";
 import { db } from "../firebaseConfig";
 import { useDebouncedCallback } from "use-debounce";
-import NotesEditor from "../components/ArticleDetails/Content/NotesEditor";
-import RelatedArticles from "../components/ArticleDetails/Content/RelatedArticles";
-import {
-  doc,
-  getDoc,
-  getDocs,
-  collection,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, setDoc, updateDoc } from "firebase/firestore";
 import { findRelatedArticles } from "../utils/articleUtils";
 import Header from "../components/ArticleDetails/Header";
 import ContentSection from "../components/ArticleDetails/ContentSection";
+import RelatedArticles from "../components/ArticleDetails/Content/RelatedArticles";
+import NotesEditor from "../components/ArticleDetails/Content/NotesEditor";
+import Pagination from "../components/ArticleDetails/Content/Pagination";
+import SummarySection from "../components/ArticleDetails/Content/SummarySection";
 import Sidebar from "../components/ArticleDetails/Sidebar";
 import ScrollButton from "../components/ArticleDetails/ScrollButton";
 import Loading from "../components/Loading";
 import ErrorComponent from "../components/Error";
 import { ActiveReadingProvider } from "../components/ArticleDetails/ActiveReading/ActiveReadingProvider";
+import Statistics from "../components/ArticleDetails/Content/Statistics";
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -46,13 +49,55 @@ function ArticleDetail() {
   const [isPublic, setIsPublic] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
-
   const tabs = [
     { id: "content", label: "Content" },
+    { id: "summary", label: "Summary" },
     { id: "notes", label: "Notes" },
-    { id: "related", label: "Related Items" },
-    { id: "stats", label: "Article Statistics" },
+    { id: "related", label: "Related" },
+    { id: "stats", label: "Statistics" },
   ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "content":
+        return (
+          <ActiveReadingProvider articleId={id}>
+            <ContentSection article={article} />
+          </ActiveReadingProvider>
+        );
+      case "summary":
+        return (
+          <div className="p-4 prose max-w-none">
+            <h2 className="text-2xl font-bold mb-4">Summary</h2>
+            {article.summary ? (
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.summary) }} />
+            ) : (
+              <p className="text-gray-500 italic">No summary available.</p>
+            )}
+          </div>
+        );
+      case "related":
+        return <RelatedArticles relatedArticles={relatedArticles} />;
+      case "notes":
+        return (
+          <div className="p-4">
+            <NotesEditor
+              notes={notes}
+              setNotes={setNotes}
+              saveNotes={saveNotes}
+              canEdit={canEdit}
+              saving={saving}
+              articleId={article.id}
+              articleTitle={article.title}
+            />
+          </div>
+        );
+      case "stats":
+        return <Statistics content={article.markdown} />;
+      default:
+        return null;
+    }
+  };
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -227,6 +272,7 @@ function ArticleDetail() {
     setSaving(true);
     saveNotes(notes);
   }, 1000); // Save notes with a 1-second debounce delay
+
   if (loading) {
     return <Loading loading="Loading ..." />;
   }
@@ -251,53 +297,7 @@ function ArticleDetail() {
       />
       <div className="container mx-auto px-4 py-6 relative">
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-grow overflow-auto">
-            {activeTab === "content" && (
-              <ActiveReadingProvider articleId={id}>
-                <ContentSection
-                  article={article}
-                  title={title}
-                  setTitle={setTitle}
-                  notes={notes}
-                  setNotes={setNotes}
-                  editing={editing}
-                  setEditing={setEditing}
-                  status={status}
-                  setStatus={setStatus}
-                  tags={tags}
-                  setTags={setTags}
-                  createdAt={createdAt}
-                  showSummary={showSummary}
-                  setShowSummary={setShowSummary}
-                  relatedArticles={relatedArticles}
-                  canEdit={canEdit}
-                  isPublic={isPublic}
-                  setIsPublic={setIsPublic}
-                  tagSuggestions={tagSuggestions}
-                  setTagSuggestions={setTagSuggestions}
-                  saving={saving}
-                />
-              </ActiveReadingProvider>
-            )}
-            {activeTab === "notes" && (
-              <div className="p-4">
-                <NotesEditor
-                  notes={notes}
-                  setNotes={setNotes}
-                  saveNotes={saveNotes}
-                  canEdit={canEdit}
-                  saving={saving}
-                  articleId={article.id}
-                  articleTitle={article.title}
-                />
-              </div>
-            )}
-            {activeTab === "related" && (
-              <div className="flex-grow">
-                <RelatedArticles relatedArticles={relatedArticles} />
-              </div>
-            )}
-          </div>
+          <div className="flex-grow overflow-auto">{renderTabContent()}</div>
           {showSidebar && (
             <div className="w-96 sticky top-16">
               <Sidebar
