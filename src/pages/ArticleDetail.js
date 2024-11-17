@@ -5,6 +5,7 @@ import { db } from "../firebaseConfig";
 import { useDebouncedCallback } from "use-debounce";
 import NotesEditor from "../components/ArticleDetails/Content/NotesEditor";
 import RelatedArticles from "../components/ArticleDetails/Content/RelatedArticles";
+import ArticleStats from "../components/ArticleDetails/Content/ArticleStats";
 import {
   doc,
   getDoc,
@@ -295,6 +296,11 @@ function ArticleDetail() {
             {activeTab === "related" && (
               <div className="flex-grow">
                 <RelatedArticles relatedArticles={relatedArticles} />
+              </div>
+            )}
+            {activeTab === "stats" && (
+              <div className="flex-grow">
+                <ArticleStats article={article} />
               </div>
             )}
           </div>
