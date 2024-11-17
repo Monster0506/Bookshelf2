@@ -7,7 +7,6 @@ import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import "react-markdown-editor-lite/lib/index.css";
 import RelatedArticles from "./Content/RelatedArticles";
 import NotesEditor from "./Content/NotesEditor";
-import Pagination from "./Content/Pagination";
 import SummarySection from "./Content/SummarySection";
 import Header from "./Content/Header";
 import HighlightManager from "./ActiveReading/HighlightManager";
@@ -218,18 +217,6 @@ function ContentSection({
     renderHighlights();
   }, [renderHighlights]);
 
-  const calculatePagination = (size) => {
-    const L = 11000,
-      M = 8000;
-    return size <= L
-      ? 1
-      : Math.ceil((size - L) / (M + Math.log(size / L) * 1000)) + 1;
-  };
-
-  const size = (article.markdown || "").length;
-  const ITEMS_PER_PAGE = Math.ceil(size / calculatePagination(size));
-  const totalPages = Math.ceil(size / ITEMS_PER_PAGE);
-
   const handleMetadataChange = debounce((field, value) => {
     const handlers = {
       title: setTitle,
@@ -240,8 +227,9 @@ function ContentSection({
     handlers[field]?.(value);
   }, 300);
 
-  const handlePageChange = (direction) =>
-    setCurrentPage((page) => page + direction);
+  const renderContent = () => {
+    return DOMPurify.sanitize(article.markdown || "No content available.");
+  };
 
   const handleAddNote = useCallback(() => {
     const selection = window.getSelection();
@@ -280,14 +268,6 @@ function ContentSection({
     }
   }, [handleTextSelection]);
 
-  const renderPageContent = () => {
-    const content = (article.markdown || "").slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE,
-    );
-    return DOMPurify.sanitize(content || "No content available.");
-  };
-
   return (
     <motion.div
       className="content-section relative"
@@ -308,16 +288,10 @@ function ContentSection({
       />
       <div
         ref={contentRef}
-        className="prose max-w-none"
+        className="prose max-w-none markdown-content"
         dangerouslySetInnerHTML={{
-          __html: DOMPurify.sanitize(renderPageContent()),
+          __html: renderContent(),
         }}
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        handlePageChange={handlePageChange}
-        setCurrentPage={setCurrentPage}
       />
       
       <AnimatePresence>
