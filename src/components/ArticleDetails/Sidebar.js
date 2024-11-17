@@ -7,6 +7,7 @@ import {
   addFolder,
   updateFolder,
 } from "../../utils/firestoreUtils";
+import SourceAttribution from "./Content/SourceAttribution";
 
 function Sidebar({
   article,
@@ -36,6 +37,7 @@ function Sidebar({
   const [selectedFolder, setSelectedFolder] = useState(folderId || "");
   const [newFolderName, setNewFolderName] = useState("");
   const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     const fetchFolders = async () => {
@@ -196,6 +198,22 @@ function Sidebar({
     );
   };
 
+  const handleRemoveTag = (tag) => {
+    const currentTags = tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const newTags = currentTags.filter((t) => t !== tag);
+    setTags(newTags.join(", "));
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === "Enter") {
+      appendTag(newTag);
+      setNewTag("");
+    }
+  };
+
   return (
     <AnimatePresence>
       {showSidebar && (
@@ -204,132 +222,197 @@ function Sidebar({
           animate={{ x: showSidebar ? 0 : "100%" }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="sticky top-20 float-right mr-4 h-[calc(100vh-7rem)] w-72 bg-white shadow-xl overflow-y-auto z-30 rounded-2xl border border-gray-200"
-          style={{ maxHeight: 'calc(100vh - 7rem)' }}
+          className="sticky top-16 float-right w-80 bg-white shadow-lg overflow-y-auto z-30 rounded-lg border border-gray-200"
+          style={{ maxHeight: 'calc(100vh - 4rem)' }}
         >
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Metadata</h2>
+          <div className="p-4">
+            {/* Header with Edit Button */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Details</h2>
               {canEdit && (
                 <button
                   onClick={editing ? handleSaveChanges : () => setEditing(true)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    editing
+                      ? "bg-green-500 hover:bg-green-600 text-white"
+                      : "bg-blue-500 hover:bg-blue-600 text-white"
+                  }`}
                   disabled={saving}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                    saving
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : editing
-                      ? "bg-green-500 hover:bg-green-600"
-                      : "bg-blue-500 hover:bg-blue-600"
-                  } text-white transition-colors`}
                 >
                   {saving ? "Saving..." : editing ? "Save" : "Edit"}
                 </button>
               )}
             </div>
 
-            <div className="mb-6">
-              <label className="block text-gray-800 mb-3 font-semibold text-lg">
-                Tags
-              </label>
-              {editing ? (
-                <>
-                  <input
-                    type="text"
-                    value={tags}
-                    onChange={(e) => handleMetadataChange("tags", e.target.value)}
-                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-sm"
-                    placeholder="Add tags, separated by commas"
-                  />
-
-                  <div className="flex gap-4 mt-4">
-                    <button
-                      onClick={() => setShowTagSuggestions(!showTagSuggestions)}
-                      className="px-5 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600"
-                    >
-                      Tag Suggestions
-                    </button>
-                    <button
-                      onClick={() =>
-                        setShowAutoTagSuggestions(!showAutoTagSuggestions)
-                      }
-                      className="px-5 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600"
-                    >
-                      Auto Tag Suggestions
-                    </button>
+            {/* Visibility Toggle */}
+            {editing ? (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700">Visibility</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {isPublic ? "Anyone can view this article" : "Only you can view this article"}
+                    </p>
                   </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={isPublic}
+                      onChange={(e) => setIsPublic(e.target.checked)}
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <div className="flex items-center text-sm">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md ${
+                    isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                  }`}>
+                    {isPublic ? "Public" : "Private"}
+                  </span>
+                </div>
+              </div>
+            )}
 
-                  {(showTagSuggestions || showAutoTagSuggestions) && (
-                    <div className="mt-6 p-4 bg-white border rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                      {showTagSuggestions && (
-                        <div className="mb-4">
-                          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                            Tag Suggestions
-                          </h3>
-                          {tagSuggestions.map((suggestion, index) => (
-                            <div
-                              key={index}
-                              className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
-                              onClick={() => {
-                                appendTag(suggestion);
-                                setShowTagSuggestions(false);
-                              }}
-                            >
-                              {suggestion}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+            {/* Source Attribution */}
+            <SourceAttribution url={article.source} />
 
-                      {showAutoTagSuggestions && (
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                            Auto Tag Suggestions
-                          </h3>
-                          {autoTagSuggestions.map((suggestion, index) => (
-                            <div
-                              key={index}
-                              className="p-2 cursor-pointer hover:bg-gray-100 rounded transition-all"
-                              onClick={() => {
-                                appendTag(suggestion);
-                                setShowAutoTagSuggestions(false);
-                              }}
-                            >
-                              {suggestion}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                tags.trim() && (
-                  <div className="flex flex-wrap gap-3 mt-2">
-                    {tags.split(",").map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full shadow-lg"
-                      >
-                        {tag.trim()}
-                      </span>
-                    ))}
-                  </div>
-                )
-              )}
+            {/* Status Section */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Reading Status</h3>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                disabled={!editing}
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              >
+                <option value="unread">Unread</option>
+                <option value="reading">Reading</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+              </select>
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Folder</h3>
+            {/* Tags Section */}
+            {(editing || (tags && tags.trim())) && (
               <div className="mb-4">
-                <div className="max-h-48 overflow-y-auto border rounded-lg bg-white">
-                  <div 
-                    className="p-2.5 hover:bg-gray-50 cursor-pointer border-b"
-                    onClick={() => handleMetadataChange("folderId", "")}
-                  >
-                    <span className="text-gray-500">No Folder</span>
-                  </div>
-                  {folders.map(folder => renderFolderOption(folder))}
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Tags</h3>
+                <div className="space-y-2">
+                  {editing ? (
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {tags.split(",").filter(tag => tag.trim()).map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-1 rounded-md text-sm bg-blue-100 text-blue-700"
+                          >
+                            {tag.trim()}
+                            <button
+                              onClick={() => handleRemoveTag(tag.trim())}
+                              className="ml-1.5 text-blue-600 hover:text-blue-800"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={tags}
+                        onChange={(e) => handleMetadataChange("tags", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Add tags, separated by commas"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => setShowTagSuggestions(!showTagSuggestions)}
+                          className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                        >
+                          Tag Suggestions
+                        </button>
+                        <button
+                          onClick={() => setShowAutoTagSuggestions(!showAutoTagSuggestions)}
+                          className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                        >
+                          Auto Tags
+                        </button>
+                      </div>
+
+                      {/* Tag Suggestions Panel */}
+                      {(showTagSuggestions || showAutoTagSuggestions) && (
+                        <div className="mt-2 p-3 bg-white border rounded-md shadow-sm max-h-48 overflow-y-auto">
+                          {showTagSuggestions && (
+                            <div className="mb-3">
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Suggested Tags</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {tagSuggestions.map((suggestion, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => {
+                                      appendTag(suggestion);
+                                      setShowTagSuggestions(false);
+                                    }}
+                                    className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                                  >
+                                    {suggestion}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {showAutoTagSuggestions && (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Auto-Generated Tags</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {autoTagSuggestions.map((suggestion, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => {
+                                      appendTag(suggestion);
+                                      setShowAutoTagSuggestions(false);
+                                    }}
+                                    className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                                  >
+                                    {suggestion}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {tags.split(",").filter(tag => tag.trim()).map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md text-sm bg-blue-100 text-blue-700"
+                        >
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {/* Folder Section */}
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Folder</h3>
+              <div className="max-h-48 overflow-y-auto border rounded-lg bg-white">
+                <div 
+                  className="p-2.5 hover:bg-gray-50 cursor-pointer border-b"
+                  onClick={() => handleMetadataChange("folderId", "")}
+                >
+                  <span className="text-gray-500">No Folder</span>
+                </div>
+                {folders.map(folder => renderFolderOption(folder))}
               </div>
               {editing && (
                 <div className="flex items-center space-x-2">
@@ -350,44 +433,8 @@ function Sidebar({
               )}
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Status</h3>
-              {editing ? (
-                <select
-                  value={status}
-                  onChange={(e) => handleMetadataChange("status", e.target.value)}
-                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="unread">Unread</option>
-                  <option value="reading">Reading</option>
-                  <option value="completed">Completed</option>
-                </select>
-              ) : (
-                <div className="text-gray-700 capitalize">{status}</div>
-              )}
-            </div>
-
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Visibility</h3>
-              {editing ? (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={isPublic}
-                    onChange={(e) => handleMetadataChange("public", e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <label className="text-gray-700">Make article public</label>
-                </div>
-              ) : (
-                <div className="text-gray-700">
-                  {isPublic ? "Public" : "Private"}
-                </div>
-              )}
-            </div>
-
             {saving && (
-              <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
+              <div className="fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-md shadow-lg text-sm">
                 Saving...
               </div>
             )}

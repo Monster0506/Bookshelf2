@@ -13,7 +13,8 @@ import {
   summarizeContent,
 } from "../utils/contentUtils";
 import { processHTMLFile, processPDFFile } from "../utils/fileUtils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { logArticleAdd, logError, logFeatureUse } from "../utils/analyticsUtils";
 
 function AddArticle() {
   const { currentUser } = useAuth();
@@ -73,6 +74,10 @@ function AddArticle() {
           onClick={() => {
             setSelectedFolder(folder.id);
             setIsDropdownOpen(false);
+            logFeatureUse('select_folder', {
+              folder_id: folder.id,
+              context: 'article_add'
+            });
           }}
         >
           <div className="flex items-center flex-1">
@@ -183,6 +188,8 @@ function AddArticle() {
     }
 
     try {
+      logFeatureUse('start_article_add', { has_file: !!file });
+
       let sourceURL = source;
       let articleContent = "";
       let articleSummary = "";
@@ -223,6 +230,11 @@ function AddArticle() {
           setError(
             `Failed to extract content from the URL. Please try a different URL. ${contentError}`,
           );
+          logError('article_add_error', `Failed to extract content from the URL. ${contentError}`, {
+            has_file: !!file,
+            has_url: !!source,
+            has_folder: !!selectedFolder
+          });
           return;
         }
       } else if ((filetype === "HTML" || filetype === "PDF") && file) {
@@ -252,6 +264,11 @@ function AddArticle() {
           setError(
             `Failed to extract content from the uploaded file. Please try again. ${contentError}`,
           );
+          logError('article_add_error', `Failed to extract content from the uploaded file. ${contentError}`, {
+            has_file: !!file,
+            has_url: !!source,
+            has_folder: !!selectedFolder
+          });
           return;
         }
       } else if (filetype === "PLAINTEXT") {
@@ -303,6 +320,9 @@ function AddArticle() {
       const articleId = result.id;
       console.log("Article added successfully with ID:", articleId);
 
+      // Track successful article addition
+      logArticleAdd(articleId, selectedFolder);
+
       // Update folder with the new article ID if a folder is selected
       if (selectedFolder) {
         console.log("Updating folder with article...");
@@ -314,6 +334,13 @@ function AddArticle() {
     } catch (error) {
       console.error("Failed to add article:", error);
       setError(`Failed to add article: ${error.message}`);
+      logError('article_add_error', error.message, {
+        has_file: !!file,
+        has_url: !!source,
+        has_folder: !!selectedFolder
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 

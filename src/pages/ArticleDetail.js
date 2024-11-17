@@ -51,6 +51,7 @@ function ArticleDetail() {
     { id: "content", label: "Content" },
     { id: "notes", label: "Notes" },
     { id: "related", label: "Related Items" },
+    { id: "stats", label: "Article Statistics" },
   ];
 
   useEffect(() => {
@@ -159,11 +160,12 @@ function ArticleDetail() {
     try {
       setSaving(true);
       const articleRef = doc(db, "articles", id);
-      
+
       const tagArray = tags
-        ? tags.split(",")
-            .map(tag => tag.trim())
-            .filter(tag => tag.length > 0)
+        ? tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0)
         : [];
 
       const updateData = {
@@ -184,22 +186,30 @@ function ArticleDetail() {
       const tagsCollection = collection(db, "tags");
       for (const tag of tagArray) {
         const tagDoc = doc(tagsCollection, tag);
-        await setDoc(tagDoc, { 
-          name: tag,
-          lastUsed: new Date()
-        }, { merge: true });
+        await setDoc(
+          tagDoc,
+          {
+            name: tag,
+            lastUsed: new Date(),
+          },
+          { merge: true },
+        );
       }
 
       const updatedArticleDoc = await getDoc(articleRef);
       if (updatedArticleDoc.exists()) {
-        const updatedArticle = { 
-          id: updatedArticleDoc.id, 
-          ...updatedArticleDoc.data() 
+        const updatedArticle = {
+          id: updatedArticleDoc.id,
+          ...updatedArticleDoc.data(),
         };
-        
+
         setArticle(updatedArticle);
         setTitle(updatedArticle.title || "");
-        setTags(Array.isArray(updatedArticle.tags) ? updatedArticle.tags.join(", ") : "");
+        setTags(
+          Array.isArray(updatedArticle.tags)
+            ? updatedArticle.tags.join(", ")
+            : "",
+        );
         setStatus(updatedArticle.status || "");
         setIsPublic(!!updatedArticle.public);
         setFolderId(updatedArticle.folderId || null);
