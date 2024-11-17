@@ -17,13 +17,16 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
 .markdown-content {
-  font-family: "Fira Code", monospace;
-  line-height: 1.6;
-  color: #333;
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  line-height: 1.8;
+  color: #2d3748;
+  padding: 1.5rem;
+  max-width: 80ch;
+  margin: 0 auto;
 }
 
 .markdown-content h1,
@@ -32,22 +35,23 @@ code {
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  font-weight: 600;
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
-  line-height: 1.25;
+  font-weight: 700;
+  margin-top: 2em;
+  margin-bottom: 1em;
+  line-height: 1.3;
+  color: #1a202c;
 }
 
 .markdown-content h1 {
-  font-size: 2em;
-  border-bottom: 2px solid #ddd;
-  padding-bottom: 0.2em;
+  font-size: 2.25em;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.3em;
 }
 
 .markdown-content h2 {
-  font-size: 1.75em;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 0.2em;
+  font-size: 1.8em;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.3em;
 }
 
 .markdown-content h3 {
@@ -59,22 +63,26 @@ code {
 }
 
 .markdown-content p {
-  margin: 1em 0;
+  margin: 1.5em 0;
+  line-height: 1.8;
 }
 
 .markdown-content a {
-  color: #1e90ff;
+  color: #3182ce;
   text-decoration: none;
+  border-bottom: 1px solid #3182ce;
+  transition: all 0.2s ease;
 }
 
 .markdown-content a:hover {
-  text-decoration: underline;
+  color: #2c5282;
+  border-bottom-width: 2px;
 }
 
 .markdown-content ul,
 .markdown-content ol {
-  padding-left: 1.5em;
-  margin: 1em 0;
+  padding-left: 1.75em;
+  margin: 1.5em 0;
 }
 
 .markdown-content ul {
@@ -86,65 +94,124 @@ code {
 }
 
 .markdown-content li {
-  margin-bottom: 0.5em;
+  margin-bottom: 0.75em;
+  line-height: 1.6;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+  margin: 0.5em 0;
 }
 
 .markdown-content blockquote {
-  padding: 0.75em 1.5em;
-  margin: 1em 0;
-  background-color: #f1f1f1;
-  border-left: 4px solid #ccc;
-  font-style: italic;
-  color: #555;
+  padding: 1em 1.5em;
+  margin: 1.5em 0;
+  background-color: #f8fafc;
+  border-left: 4px solid #3182ce;
+  color: #4a5568;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-content blockquote p {
+  margin: 0.5em 0;
 }
 
 .markdown-content pre {
-  background-color: #272822;
-  color: #f8f8f2;
-  padding: 1em;
-  border-radius: 6px;
+  background-color: #2d3748;
+  color: #f7fafc;
+  padding: 1.25em;
+  border-radius: 8px;
   overflow-x: auto;
-  margin: 1em 0;
+  margin: 1.5em 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content code {
   font-family: "Fira Code", monospace;
-  background-color: #f1f1f1;
+  font-size: 0.9em;
+  background-color: #edf2f7;
   padding: 0.2em 0.4em;
   border-radius: 4px;
+  color: #2d3748;
 }
 
 .markdown-content pre code {
   background-color: transparent;
   padding: 0;
   border-radius: 0;
+  color: inherit;
+  font-size: 0.95em;
+  line-height: 1.6;
 }
 
 .markdown-content hr {
   border: none;
-  border-top: 1px solid #ddd;
-  margin: 2em 0;
+  border-top: 2px solid #e2e8f0;
+  margin: 3em 0;
 }
 
 .markdown-content img {
   max-width: 100%;
+  height: auto;
   border-radius: 8px;
-  margin: 1em 0;
+  margin: 1.5em 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content table {
   width: 100%;
-  border-collapse: collapse;
-  margin: 1em 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.5em 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid #ddd;
-  padding: 0.5em;
+  border: 1px solid #e2e8f0;
+  padding: 0.75em 1em;
   text-align: left;
 }
 
 .markdown-content th {
-  background-color: #f1f1f1;
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #2d3748;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.markdown-content tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.markdown-content tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Add styles for task lists */
+.markdown-content input[type="checkbox"] {
+  margin-right: 0.5em;
+}
+
+/* Add styles for keyboard shortcuts */
+.markdown-content kbd {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  color: #2d3748;
+  display: inline-block;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  margin: 0 0.2em;
+}
+
+/* Add styles for abbreviations */
+.markdown-content abbr {
+  border-bottom: 1px dotted #4a5568;
+  cursor: help;
 }
