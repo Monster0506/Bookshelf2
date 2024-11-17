@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import nlp from 'compromise';
-import stopwords from 'stopwords-en';
-import vader from 'vader-sentiment';
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import nlp from "compromise";
+import stopwords from "stopwords-en";
+import vader from "vader-sentiment";
 import {
   faBook,
   faFont,
@@ -13,8 +13,8 @@ import {
   faChartBar,
   faFaceSmile,
   faFaceFrown,
-  faGauge
-} from '@fortawesome/free-solid-svg-icons';
+  faGauge,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Create a Set for faster lookup
 const stopWordsSet = new Set(stopwords);
@@ -23,10 +23,10 @@ const stopWordsSet = new Set(stopwords);
 const cleanText = (text) => {
   return text
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '') // Remove non-alphanumeric characters
+    .replace(/[^a-z0-9\s]/g, "") // Remove non-alphanumeric characters
     .split(/\s+/)
-    // .filter(word => !stopWordsSet.has(word)) // Remove stopwords
-    .join(' ');
+    .filter((word) => !stopWordsSet.has(word)) // Remove stopwords
+    .join(" ");
 };
 
 const StatItem = ({ icon, label, value }) => (
@@ -64,7 +64,12 @@ const SentimentGauge = ({ score }) => {
   // Convert score from [-5, 5] range to [-1, 1] range
   const normalizedScore = Math.max(-1, Math.min(1, score / 5));
   const percentage = ((normalizedScore + 1) / 2) * 100;
-  const color = normalizedScore > 0 ? 'text-green-500' : normalizedScore < 0 ? 'text-red-500' : 'text-gray-500';
+  const color =
+    normalizedScore > 0
+      ? "text-green-500"
+      : normalizedScore < 0
+        ? "text-red-500"
+        : "text-gray-500";
 
   return (
     <motion.div
@@ -73,18 +78,20 @@ const SentimentGauge = ({ score }) => {
       className="flex flex-col items-center p-4"
     >
       <div className={`text-4xl mb-2 ${color}`}>
-        <FontAwesomeIcon icon={normalizedScore > 0 ? faFaceSmile : faFaceFrown} />
+        <FontAwesomeIcon
+          icon={normalizedScore > 0 ? faFaceSmile : faFaceFrown}
+        />
       </div>
       <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className={`h-full ${normalizedScore > 0 ? 'bg-green-500' : 'bg-red-500'}`}
+          className={`h-full ${normalizedScore > 0 ? "bg-green-500" : "bg-red-500"}`}
         />
       </div>
       <p className="mt-2 font-semibold text-gray-700">
-        Sentiment Score: {normalizedScore.toFixed(2)}
+        Sentiment Score: {percentage.toFixed()}%
       </p>
     </motion.div>
   );
@@ -96,7 +103,7 @@ const ArticleStats = ({ article }) => {
 
     const text = article.plaintext;
     const cleanedText = cleanText(text);
-    
+
     // Basic stats (use original text for these)
     const words = text.trim().split(/\s+/);
     const wordCount = words.length;
@@ -108,7 +115,7 @@ const ArticleStats = ({ article }) => {
     // Word frequency (use cleaned text)
     const cleanedWords = cleanedText.split(/\s+/);
     const wordFrequency = cleanedWords
-      .filter(word => word.length > 3)
+      .filter((word) => word.length > 3)
       .reduce((acc, word) => {
         acc[word] = (acc[word] || 0) + 1;
         return acc;
@@ -129,16 +136,17 @@ const ArticleStats = ({ article }) => {
       topWords,
       sentenceCount,
       avgWordLength,
-      sentimentScore
+      sentimentScore,
     };
   }, [article?.plaintext]);
 
-  if (!stats) return (
-    <div className="p-8 text-center text-gray-500">
-      <FontAwesomeIcon icon={faBook} className="text-4xl mb-4" />
-      <p>No content available for analysis</p>
-    </div>
-  );
+  if (!stats)
+    return (
+      <div className="p-8 text-center text-gray-500">
+        <FontAwesomeIcon icon={faBook} className="text-4xl mb-4" />
+        <p>No content available for analysis</p>
+      </div>
+    );
 
   return (
     <div className="p-6">
@@ -159,11 +167,31 @@ const ArticleStats = ({ article }) => {
             Basic Statistics
           </h2>
           <div className="grid gap-4">
-            <StatItem icon={faBook} label="Words" value={stats.wordCount.toLocaleString()} />
-            <StatItem icon={faFont} label="Characters" value={stats.charCount.toLocaleString()} />
-            <StatItem icon={faParagraph} label="Sentences" value={stats.sentenceCount.toLocaleString()} />
-            <StatItem icon={faRulerHorizontal} label="Average Word Length" value={`${stats.avgWordLength} characters`} />
-            <StatItem icon={faClock} label="Estimated Reading Time" value={`${stats.readingTime} minute${stats.readingTime !== 1 ? 's' : ''}`} />
+            <StatItem
+              icon={faBook}
+              label="Words"
+              value={stats.wordCount.toLocaleString()}
+            />
+            <StatItem
+              icon={faFont}
+              label="Characters"
+              value={stats.charCount.toLocaleString()}
+            />
+            <StatItem
+              icon={faParagraph}
+              label="Sentences"
+              value={stats.sentenceCount.toLocaleString()}
+            />
+            <StatItem
+              icon={faRulerHorizontal}
+              label="Average Word Length"
+              value={`${stats.avgWordLength} characters`}
+            />
+            <StatItem
+              icon={faClock}
+              label="Estimated Reading Time"
+              value={`${stats.readingTime} minute${stats.readingTime !== 1 ? "s" : ""}`}
+            />
           </div>
         </motion.div>
 

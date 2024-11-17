@@ -1,49 +1,30 @@
 import React from "react";
-import { FaArrowLeft } from "react-icons/fa";
+import { FaArrowLeft, FaCog } from "react-icons/fa";
 import BackButton from "../BackButton";
+import ReadingProgress from "./ReadingProgress";
 
-function Header({
-  activeTab,
-  setActiveTab,
-  tabs,
-  showSidebar,
-  setShowSidebar,
-}) {
+function Header({ showSidebar, setShowSidebar, articleId }) {
   return (
-    <div className="flex flex-col gap-4">
-      {/* Back Button */}
-      <div className="flex items-center justify-between">
-        <BackButton />
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="flex items-center justify-between border-b-2 border-gray-200">
-        {/* Tabs */}
-        <div className="flex gap-4">
-          {tabs.map((tab) => (
-            <button
-              type="button"
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium ${
-                activeTab === tab.id
-                  ? "border-b-4 border-blue-500 text-blue-500"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+    <div className="bg-white shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <BackButton />
+          
+          {/* Show Metadata Button */}
+          <button
+            type="button"
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors duration-200"
+          >
+            <FaCog className={`transition-transform duration-200 ${showSidebar ? 'rotate-90' : ''}`} />
+            {showSidebar ? "Hide Metadata" : "Show Metadata"}
+          </button>
         </div>
-
-        {/* Show Metadata Button */}
-        <button
-          type="button"
-          onClick={() => setShowSidebar(!showSidebar)}
-          className="ml-auto px-4 py-2 text-sm font-medium bg-gray-500 text-white rounded-lg shadow hover:bg-gray-600 transition duration-300"
-        >
-          {showSidebar ? "Hide Metadata" : "Show Metadata"}
-        </button>
+        
+        {/* Reading Progress */}
+        <div className="mt-4">
+          <ReadingProgress articleId={articleId} />
+        </div>
       </div>
     </div>
   );

@@ -215,3 +215,37 @@ code {
   border-bottom: 1px dotted #4a5568;
   cursor: help;
 }
+
+/* Tab Bar Styles */
+.tab-content-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.tab-content-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms, transform 200ms;
+}
+
+.tab-content-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tab-content-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 200ms, transform 200ms;
+}
+
+/* Tab hover effect */
+@keyframes tabHover {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+.tab-hover-effect:hover {
+  animation: tabHover 0.3s ease-in-out;
+}

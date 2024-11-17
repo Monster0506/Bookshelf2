@@ -7,6 +7,7 @@ import NotesEditor from "../components/ArticleDetails/Content/NotesEditor";
 import RelatedArticles from "../components/ArticleDetails/Content/RelatedArticles";
 import ArticleStats from "../components/ArticleDetails/Content/ArticleStats";
 import SummaryTab from "../components/ArticleDetails/Content/SummaryTab";
+import TabBar from "../components/ArticleDetails/TabBar";
 import {
   doc,
   getDoc,
@@ -245,74 +246,76 @@ function ArticleDetail() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
-        navigate={navigate}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        tabs={tabs}
         showSidebar={showSidebar}
         setShowSidebar={setShowSidebar}
+        articleId={id}
       />
       <div className="container mx-auto px-4 py-6 relative">
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-grow overflow-auto">
-            {activeTab === "content" && (
-              <ActiveReadingProvider articleId={id}>
-                <ContentSection
-                  article={article}
-                  title={title}
-                  setTitle={setTitle}
-                  notes={notes}
-                  setNotes={setNotes}
-                  editing={editing}
-                  setEditing={setEditing}
-                  status={status}
-                  setStatus={setStatus}
-                  tags={tags}
-                  setTags={setTags}
-                  createdAt={createdAt}
-                  showSummary={showSummary}
-                  setShowSummary={setShowSummary}
-                  relatedArticles={relatedArticles}
-                  canEdit={canEdit}
-                  isPublic={isPublic}
-                  setIsPublic={setIsPublic}
-                  tagSuggestions={tagSuggestions}
-                  setTagSuggestions={setTagSuggestions}
-                  saving={saving}
-                />
-              </ActiveReadingProvider>
-            )}
-            {activeTab === "summary" && (
-              <SummaryTab
-                article={article}
-                status={status}
-                tags={tags}
-                createdAt={createdAt}
-              />
-            )}
-            {activeTab === "notes" && (
+          <div className="flex-grow">
+            <div className="bg-white rounded-lg shadow-sm">
+              <TabBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
               <div className="p-4">
-                <NotesEditor
-                  notes={notes}
-                  setNotes={setNotes}
-                  saveNotes={saveNotes}
-                  canEdit={canEdit}
-                  saving={saving}
-                  articleId={article.id}
-                  articleTitle={article.title}
-                />
+                {activeTab === "content" && (
+                  <ActiveReadingProvider articleId={id}>
+                    <ContentSection
+                      article={article}
+                      title={title}
+                      setTitle={setTitle}
+                      notes={notes}
+                      setNotes={setNotes}
+                      editing={editing}
+                      setEditing={setEditing}
+                      status={status}
+                      setStatus={setStatus}
+                      tags={tags}
+                      setTags={setTags}
+                      createdAt={createdAt}
+                      showSummary={showSummary}
+                      setShowSummary={setShowSummary}
+                      relatedArticles={relatedArticles}
+                      canEdit={canEdit}
+                      isPublic={isPublic}
+                      setIsPublic={setIsPublic}
+                      tagSuggestions={tagSuggestions}
+                      setTagSuggestions={setTagSuggestions}
+                      saving={saving}
+                    />
+                  </ActiveReadingProvider>
+                )}
+                {activeTab === "summary" && (
+                  <SummaryTab
+                    article={article}
+                    status={status}
+                    tags={tags}
+                    createdAt={createdAt}
+                  />
+                )}
+                {activeTab === "notes" && (
+                  <div className="p-4">
+                    <NotesEditor
+                      notes={notes}
+                      setNotes={setNotes}
+                      saveNotes={saveNotes}
+                      canEdit={canEdit}
+                      saving={saving}
+                      articleId={article.id}
+                      articleTitle={article.title}
+                    />
+                  </div>
+                )}
+                {activeTab === "related" && (
+                  <div className="flex-grow">
+                    <RelatedArticles relatedArticles={relatedArticles} />
+                  </div>
+                )}
+                {activeTab === "stats" && (
+                  <div className="flex-grow">
+                    <ArticleStats article={article} />
+                  </div>
+                )}
               </div>
-            )}
-            {activeTab === "related" && (
-              <div className="flex-grow">
-                <RelatedArticles relatedArticles={relatedArticles} />
-              </div>
-            )}
-            {activeTab === "stats" && (
-              <div className="flex-grow">
-                <ArticleStats article={article} />
-              </div>
-            )}
+            </div>
           </div>
           {showSidebar && (
             <div className="w-96 sticky top-16">
