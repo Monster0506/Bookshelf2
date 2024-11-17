@@ -12,6 +12,7 @@ import HighlightManager from "./ActiveReading/HighlightManager";
 import MarginNotes from "./ActiveReading/MarginNotes";
 import HighlightPopup from "./ActiveReading/HighlightPopup";
 import { useActiveReading } from "./ActiveReading/ActiveReadingProvider";
+import { processArticleContent } from "../../utils/contentUtils";
 
 function ContentSection({
   article,

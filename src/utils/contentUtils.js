@@ -2,6 +2,7 @@ import { Readability } from "@mozilla/readability";
 import winkNLP from "wink-nlp";
 import model from "wink-eng-lite-web-model";
 import { eng } from "stopword"; // Stopword library for filtering
+import { extractKeyTakeaways } from './keyTakeaways';
 
 const winknlp = winkNLP(model);
 const CUSTOM_STOP_WORDS = new Set([
@@ -130,6 +131,28 @@ export const summarizeContent = (content, maxSentences = 3) => {
     .join(" ");
 
   return summary;
+};
+
+/**
+ * Process article content to extract key information
+ * @param {string} content - The article content to process
+ * @param {boolean} useAI - Whether to use AI-powered extraction
+ * @returns {Object} Processed content with key takeaways
+ */
+export const processArticleContent = async (content, useAI = true) => {
+    if (!content) {
+        console.warn('No content provided to process');
+        return { keyTakeaways: {} };
+    }
+
+    try {
+        console.log(`Processing content using ${useAI ? 'AI' : 'rule-based'} extraction...`);
+        const keyTakeaways = await extractKeyTakeaways(content, useAI);
+        return { keyTakeaways };
+    } catch (error) {
+        console.error('Error processing content:', error);
+        throw error;
+    }
 };
 
 export const fetchAndProcessContent = async (url) => {
