@@ -7,7 +7,6 @@ import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import "react-markdown-editor-lite/lib/index.css";
 import RelatedArticles from "./Content/RelatedArticles";
 import NotesEditor from "./Content/NotesEditor";
-import SummarySection from "./Content/SummarySection";
 import Header from "./Content/Header";
 import HighlightManager from "./ActiveReading/HighlightManager";
 import MarginNotes from "./ActiveReading/MarginNotes";
@@ -276,16 +275,6 @@ function ContentSection({
       transition={{ duration: 0.5 }}
     >
       <Header title={title} editing={editing} setTitle={setTitle} />
-      {createdAt && (
-        <p className="created-at">
-          Created: {format(new Date(createdAt.seconds * 1000), "PPp")}
-        </p>
-      )}
-      <SummarySection
-        showSummary={showSummary}
-        setShowSummary={setShowSummary}
-        summary={article.summary}
-      />
       <div
         ref={contentRef}
         className="prose max-w-none markdown-content"

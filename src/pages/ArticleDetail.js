@@ -6,6 +6,7 @@ import { useDebouncedCallback } from "use-debounce";
 import NotesEditor from "../components/ArticleDetails/Content/NotesEditor";
 import RelatedArticles from "../components/ArticleDetails/Content/RelatedArticles";
 import ArticleStats from "../components/ArticleDetails/Content/ArticleStats";
+import SummaryTab from "../components/ArticleDetails/Content/SummaryTab";
 import {
   doc,
   getDoc,
@@ -50,6 +51,7 @@ function ArticleDetail() {
 
   const tabs = [
     { id: "content", label: "Content" },
+    { id: "summary", label: "Summary" },
     { id: "notes", label: "Notes" },
     { id: "related", label: "Related Items" },
     { id: "stats", label: "Article Statistics" },
@@ -279,6 +281,14 @@ function ArticleDetail() {
                   saving={saving}
                 />
               </ActiveReadingProvider>
+            )}
+            {activeTab === "summary" && (
+              <SummaryTab
+                article={article}
+                status={status}
+                tags={tags}
+                createdAt={createdAt}
+              />
             )}
             {activeTab === "notes" && (
               <div className="p-4">
