@@ -142,13 +142,14 @@ export const summarizeContent = (content, maxSentences = 3) => {
 export const processArticleContent = async (content, useAI = true) => {
     if (!content) {
         console.warn('No content provided to process');
-        return { keyTakeaways: {} };
+        return {};
     }
 
     try {
         console.log(`Processing content using ${useAI ? 'AI' : 'rule-based'} extraction...`);
-        const keyTakeaways = await extractKeyTakeaways(content, useAI);
-        return { keyTakeaways };
+        const takeaways = await extractKeyTakeaways(content, useAI);
+        console.log('Extracted takeaways:', takeaways);
+        return takeaways; 
     } catch (error) {
         console.error('Error processing content:', error);
         throw error;
