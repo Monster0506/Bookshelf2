@@ -2,188 +2,283 @@
  * AI-powered text analysis using Hugging Face API
  */
 
-const HUGGING_FACE_API_URL =
-  "https://api-inference.huggingface.co/models/facebook/bart-large-cnn";
+// API Configuration
+const HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
 
-const HUGGING_FACE_CLASSIFIER_URL =
-  "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
+const API_TOKEN = process.env.REACT_APP_HUGGING_FACE_API_KEY;
+// Prompt templates for better AI guidance
+const SYSTEM_PROMPTS = {
+  concepts: `<INST>You are an expert at generating deep, thought-provoking questions about complex topics. For the given text, generate 3-5 open-ended questions that:
 
-const API_TOKEN = process.env.HUGGING_FACE_API_KEY;
+1. Question Format:
+   - Focus on broader implications and connections
+   - Encourage critical thinking and analysis
+   - Relate to fundamental concepts and principles
+   - Challenge assumptions and explore alternatives
 
-/**
- * Categorize text using Hugging Face's zero-shot classification
- */
-export const categorizeText = async (text, categories) => {
-  if (!text || !categories || categories.length === 0) {
-    console.log("Invalid input for categorizeText");
+2. Guidelines:
+   - Each question should be clear but complex
+   - Avoid simple yes/no questions
+   - Connect ideas across different parts of the text
+   - Encourage exploration of deeper meanings
+
+3. Output Format:
+   Return a JSON array of strings, each containing one question.
+Example:
+["How might the principles discussed in this text apply to other domains?",
+ "What underlying assumptions challenge the author's main arguments?"]</INST>`,
+  
+  categorize: `You are an expert at analyzing and categorizing text content. For the given text, analyze it and categorize relevant parts into the provided categories. 
+               Only select text that strongly matches the categories, with high confidence. Format your response as JSON.`,
+  
+  insights: `<INST>You are an expert text analyzer. Your task is to extract key insights from the provided text and organize them into specific categories. Follow these requirements exactly:
+
+1. Output Format:
+   - Respond ONLY with a valid JSON object, no other text
+   - Use the exact category names specified below
+   - Each category should contain an array of strings
+   - Output should not be original, but rather sentences directly from the text.
+
+2. Categories to Include:
+   "Main Points": Core arguments and central themes
+   "Key Findings": Important discoveries and concrete results
+   "Insights": Deeper analysis and interpretations
+   "Action Items": Recommended next steps
+   "Technical Details": Specific technical information
+   "Questions": Important questions raised in the text
+
+3. Guidelines:
+   - Keep each insight concise (1-2 sentences)
+   - Include at least one item per relevant category
+   - Skip categories that don't apply
+   - Ensure proper JSON formatting
+
+Example Response Format:
+{
+  "Main Points": ["point 1", "point 2"],
+  "Key Findings": ["finding 1", "finding 2"],
+  "Insights": ["insight 1", "insight 2"],
+  "Action Items": ["action 1", "action 2"],
+  "Technical Details": ["detail 1", "detail 2"],
+  "Questions": ["question 1", "question 2"]
+}</INST>`,
+  
+  summary: `<INST>You are a professional summarizer. Your task is to create a clear, concise summary of the following text. Follow these requirements exactly:
+
+1. Length: Write exactly 3-5 sentences, no more and no less
+2. Style: 
+   - Use clear, direct language
+   - Focus on the most important information
+   - Maintain a professional tone
+3. Content:
+   - Capture the main topic and key message
+   - Include only essential details
+   - Avoid technical jargon unless crucial
+4. Format:
+   - Write in paragraph form
+   - No bullet points or lists
+   - No introductory phrases like "This text discusses" or "This article is about"
+
+Remember: Be concise but informative. Start directly with the content.</INST>`
+};
+
+// Function declarations
+export function safeJSONParse(text, source = '') {
+  try {
+    // Try to clean the text first
+    const cleanText = text
+      .trim()
+      .replace(/^```json\s*/, '') // Remove JSON code block markers if present
+      .replace(/```\s*$/, '')     // Remove ending code block marker
+      .replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, '') // Remove zero-width spaces
+      .replace(/^\s*<\/?[a-z]+>/gi, '') // Remove any XML/HTML-like tags
+      .replace(/\n+/g, ' ')      // Replace multiple newlines with space
+      .replace(/\s+/g, ' ');     // Normalize whitespace
+
+    console.log(`[${source}] Attempting to parse JSON:`, cleanText);
+    
+    const parsed = JSON.parse(cleanText);
+    console.log(`[${source}] Successfully parsed JSON:`, parsed);
+    return parsed;
+  } catch (error) {
+    console.error(`[${source}] JSON Parse Error:`, error.message);
+    console.error('Original text:', text);
     return null;
   }
+}
 
+export async function callHuggingFaceAPI(url, prompt, text) {
   if (!API_TOKEN) {
     console.log("AI features are disabled");
     return null;
   }
 
+  const systemMessage = `<s>[INST] ${prompt} [/INST]`;
+  const userMessage = `Here is the text to analyze:\n\n${text}\n\n[INST] Please provide your response following the format specified above: [/INST]`;
+
   try {
-    const response = await fetch(HUGGING_FACE_CLASSIFIER_URL, {
+    console.log("Sending request to API with prompt:", systemMessage + userMessage);
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: text,
+        inputs: systemMessage + userMessage,
         parameters: {
-          candidate_labels: categories,
-          multi_label: true,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `API request failed: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error("Error in categorizeText:", error);
-    return null;
-  }
-};
-
-/**
- * Extract insights from text using AI
- */
-export const extractInsightsWithAI = async (text) => {
-  if (!text) {
-    console.log("No text provided to extractInsightsWithAI");
-    return {};
-  }
-
-  if (!API_TOKEN) {
-    console.log(
-      "AI features are disabled, falling back to rule-based analysis",
-    );
-    return {};
-  }
-
-  const categories = [
-    "Main Points",
-    "Key Findings",
-    "Insights",
-    "Action Items",
-    "Technical Details",
-  ];
-
-  try {
-    // Split text into sentences
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    console.log(`Processing ${sentences.length} sentences`);
-
-    // Process in batches of 3 sentences
-    const batchSize = 3;
-    const results = {};
-
-    for (let i = 0; i < Math.min(sentences.length, 15); i += batchSize) {
-      const batch = sentences.slice(i, i + batchSize).join(" ");
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}`);
-
-      try {
-        const classification = await categorizeText(batch, categories);
-
-        if (classification && classification.scores) {
-          // Get categories with confidence > 0.3
-          classification.scores.forEach((score, index) => {
-            if (score > 0.3) {
-              const category = classification.labels[index];
-              if (!results[category]) {
-                results[category] = new Set();
-              }
-              // Clean the text
-              const cleanedText = batch
-                .trim()
-                .replace(/^\W+/, "")
-                .replace(/\s+/g, " ");
-              results[category].add(cleanedText);
-            }
-          });
+          max_new_tokens: 1000,
+          temperature: 0.3,        // Lower temperature for more consistent output
+          top_p: 0.9,
+          do_sample: true,
+          return_full_text: false,
+          stop: ["</s>"]          // Stop at end of response
         }
-      } catch (batchError) {
-        console.error("Error processing batch:", batchError);
-        // Continue with next batch instead of failing completely
-        continue;
-      }
-    }
-
-    // Convert Sets to Arrays and ensure at least one item per category
-    const finalResults = {};
-    categories.forEach((category) => {
-      const items = results[category] ? Array.from(results[category]) : [];
-      if (items.length > 0) {
-        finalResults[category] = items;
-      }
-    });
-
-    console.log("Final AI extraction results:", finalResults);
-    return finalResults;
-  } catch (error) {
-    console.error("Error in extractInsightsWithAI:", error);
-    throw error; // Re-throw to handle in the component
-  }
-};
-
-/**
- * Generate a summary of the text using AI
- */
-export const generateAISummary = async (text) => {
-  if (!text) {
-    console.log("No text provided to generateAISummary");
-    return null;
-  }
-
-  if (!API_TOKEN) {
-    console.log("AI features are disabled, cannot generate summary");
-    return null;
-  }
-
-  try {
-    // Truncate text if it's too long
-    const maxLength = 1024;
-    const truncatedText = text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
-
-    const response = await fetch(HUGGING_FACE_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: truncatedText,
-        parameters: {
-          max_length: 150,
-          min_length: 50,
-          do_sample: false,
-          early_stopping: true,
-          num_beams: 4,
-          temperature: 1.0,
-          top_k: 50,
-          top_p: 0.95,
-          no_repeat_ngram_size: 3,
-        },
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API Error Response:`, errorText);
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
-    return Array.isArray(result) && result.length > 0 ? result[0].summary_text : null;
+    console.log("Raw API Response:", result);
+    return result;
   } catch (error) {
-    console.error("Error in generateAISummary:", error);
+    console.error("Error in API call:", error);
     return null;
   }
-};
+}
+
+export async function categorizeText(text, categories) {
+  if (!text || !categories || categories.length === 0) {
+    console.log("Invalid input for categorizeText");
+    return null;
+  }
+
+  const prompt = `${SYSTEM_PROMPTS.categorize}\n\nCategories: ${categories.join(", ")}\n\nProvide your response as a JSON object with 'labels' and 'scores' arrays.`;
+  
+  try {
+    const result = await callHuggingFaceAPI(HUGGING_FACE_API_URL, prompt, text);
+    if (!result || !result[0]) return null;
+    
+    // Parse the LLM's response into the expected format
+    try {
+      const parsed = safeJSONParse(result[0].generated_text, 'categorizeText');
+      return {
+        labels: parsed.labels || [],
+        scores: parsed.scores || []
+      };
+    } catch (parseError) {
+      console.error("Error parsing LLM response:", parseError);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error in categorizeText:", error);
+    return null;
+  }
+}
+
+export async function extractInsightsWithAI(text) {
+  try {
+    const result = await callHuggingFaceAPI(HUGGING_FACE_API_URL, SYSTEM_PROMPTS.insights, text);
+    
+    if (!result || !result[0]) {
+      console.error("No result from API");
+      return null;
+    }
+
+    console.log("Raw generated text:", result[0].generated_text);
+
+    // Try to extract JSON from the response
+    const jsonMatch = result[0].generated_text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("No JSON found in response");
+      return null;
+    }
+
+    const insights = safeJSONParse(jsonMatch[0], 'extractInsightsWithAI');
+    if (!insights) {
+      console.error("Failed to parse insights JSON");
+      return null;
+    }
+
+    // Validate the structure
+    const validCategories = [
+      'Main Points',
+      'Key Findings',
+      'Insights',
+      'Action Items',
+      'Technical Details',
+      'Questions'
+    ];
+
+    const validatedInsights = {};
+    for (const category of validCategories) {
+      if (Array.isArray(insights[category])) {
+        validatedInsights[category] = insights[category];
+      }
+    }
+
+    return validatedInsights;
+  } catch (error) {
+    console.error("Error extracting insights:", error);
+    return null;
+  }
+}
+
+export async function generateAISummary(text) {
+  try {
+    const result = await callHuggingFaceAPI(HUGGING_FACE_API_URL, SYSTEM_PROMPTS.summary, text);
+    
+    if (!result || !result[0]) {
+      console.error("No summary result from API");
+      return null;
+    }
+
+    console.log("AI generated summary:", result[0].generated_text);
+    
+    // Clean up the response
+    let summary = result[0].generated_text
+      .trim()
+      .replace(/^["']|["']$/g, "") // Remove quotes if present
+      .replace(/\\n/g, "\n")       // Handle newlines properly
+      .replace(/^```.*\n?/, '')    // Remove starting code block
+      .replace(/```$/, '')         // Remove ending code block
+      .trim();
+
+    return summary;
+  } catch (error) {
+    console.error("Error generating summary:", error);
+    return null;
+  }
+}
+
+export async function generateConceptQuestions(text) {
+  const result = await callHuggingFaceAPI(
+    HUGGING_FACE_API_URL,
+    SYSTEM_PROMPTS.concepts,
+    text
+  );
+
+  if (!result || !result[0]?.generated_text) {
+    console.error("Failed to generate concept questions");
+    return null;
+  }
+
+  try {
+    const questions = safeJSONParse(result[0].generated_text, 'generateConceptQuestions');
+    if (!Array.isArray(questions)) {
+      console.error("Invalid questions format:", questions);
+      return null;
+    }
+
+    return questions.filter(q => typeof q === 'string' && q.trim().length > 0);
+  } catch (error) {
+    console.error("Error processing concept questions:", error);
+    return null;
+  }
+}

@@ -1,4 +1,4 @@
-import { extractInsightsWithAI } from './aiUtils';
+import { extractInsightsWithAI, safeJSONParse } from './aiUtils';
 
 /**
  * Advanced key takeaways extraction with categorization and scoring
@@ -14,8 +14,9 @@ const IMPORTANCE_PATTERNS = {
   FINDING: /found\s+that|discovered|reveals|shows|demonstrates|indicates|proves|validates|evidence\s+suggests|illustrates/i,
   STATISTIC: /\d+%|\d+\s*percent|increased|decreased|reduced|improved|growth\s+of\s+\d+|decline\s+of\s+\d+|average\s+of|median\s+of|range\s+from|standard\s+deviation|trend\s+indicates/i,
   RECOMMENDATION: /should|must|recommend|suggest|propose|advise|consider|urge|encourage|call\s+for|emphasize|prioritize|advocate/i,
-  MAIN_POINT: /primarily|mainly|essentially|fundamentally|notably|remarkably|significantly|centrally|principally|chiefly|most\s+importantly|key\s+point|main\s+point|central\s+idea|core\s+concept|primary\s+focus/i,
-  CONTENT_OVERVIEW: /content\s+overview|content\s+summary|content\s+outline|content\s+structure|content\s+organization/i
+  MAIN_POINT: /primarily|mainly|essentially|fundamentally|notably|remarkably|significantly|centrally|principally|chiefly|most\s+importantly|key\s+point|main\s+point|central\s+idea|core\s+concept|primary\s+focus|first|second|third|fourth|fifth|finally|in\s+particular|specifically|notably|importantly/i,
+  CONTENT_OVERVIEW: /content\s+overview|content\s+summary|content\s+outline|content\s+structure|content\s+organization|this\s+article|this\s+paper|this\s+study|we\s+present|we\s+describe|we\s+discuss/i,
+  QUESTIONS: /(?:^|[.!?]\s+)(?:what|how|why|where|when|which|who|whom|whose)\b[^.!?]+[?]/i
 };
 
 // Categories for organization
@@ -23,33 +24,40 @@ const CATEGORIES = {
   MAIN_POINTS: 'Main Points',
   KEY_FINDINGS: 'Key Findings',
   INSIGHTS: 'Insights',
-  RECOMMENDATIONS: 'Recommendations',
-  TECHNICAL_DETAILS: 'Technical Details'
+  RECOMMENDATIONS: 'Action Items',
+  TECHNICAL_DETAILS: 'Technical Details',
+  QUESTIONS: 'Questions'
+
 };
 
 /**
  * Score a sentence based on importance patterns
  */
 const scoreSentence = (sentence) => {
-  let score = 0;
+  if (!sentence) return 0;
+  
   const normalizedSentence = sentence.toLowerCase().trim();
+  let score = 0;
 
-  // Pattern-based scoring
-  Object.values(IMPORTANCE_PATTERNS).forEach(pattern => {
-    if (pattern.test(normalizedSentence)) {
-      score += 1;
-    }
-  });
-
-  // Length-based scoring (prefer medium-length sentences)
-  const wordCount = normalizedSentence.split(/\s+/).length;
-  if (wordCount >= 10 && wordCount <= 30) score += 1;
-
-  // Position-based scoring (sentences at the start of paragraphs often contain main points)
-  if (/^[A-Z]/.test(sentence)) {
-    score += 0.5;
+  // Score based on patterns
+  if (IMPORTANCE_PATTERNS.MAIN_POINT.test(normalizedSentence)) score += 4; // Increased score for main points
+  if (IMPORTANCE_PATTERNS.CONTENT_OVERVIEW.test(normalizedSentence)) score += 4; // Increased score for content overview
+  if (IMPORTANCE_PATTERNS.FINDING.test(normalizedSentence)) score += 2;
+  if (IMPORTANCE_PATTERNS.CAUSATION.test(normalizedSentence)) score += 2;
+  if (IMPORTANCE_PATTERNS.STATISTIC.test(normalizedSentence)) score += 2;
+  if (IMPORTANCE_PATTERNS.RECOMMENDATION.test(normalizedSentence)) score += 2;
+  if (IMPORTANCE_PATTERNS.IMPACT.test(normalizedSentence)) score += 2;
+  if (IMPORTANCE_PATTERNS.CONCLUSION.test(normalizedSentence)) score += 2;
+  
+  // Score questions
+  if (IMPORTANCE_PATTERNS.QUESTIONS.test(normalizedSentence) && normalizedSentence.trim().endsWith('?')) {
+    score += 3;
   }
 
+  // Additional scoring factors
+  if (normalizedSentence.length > 20 && normalizedSentence.length < 300) score += 1;
+  if (/\d/.test(normalizedSentence)) score += 1;
+  
   return score;
 };
 
@@ -57,37 +65,85 @@ const scoreSentence = (sentence) => {
  * Categorize a sentence based on its content
  */
 const categorizeSentence = (sentence, score) => {
-  const normalizedSentence = sentence.toLowerCase();
+  const normalizedSentence = sentence.toLowerCase().trim();
 
-  // Main points get priority
-  if (score >= 2 || IMPORTANCE_PATTERNS.MAIN_POINT.test(normalizedSentence)) {
+  // Check for questions first
+  if (IMPORTANCE_PATTERNS.QUESTIONS.test(normalizedSentence) && normalizedSentence.trim().endsWith('?')) {
+    return CATEGORIES.QUESTIONS;
+  }
+
+  // Main points get priority with high score or specific patterns
+  if (score >= 4 || IMPORTANCE_PATTERNS.MAIN_POINT.test(normalizedSentence) || 
+      IMPORTANCE_PATTERNS.CONTENT_OVERVIEW.test(normalizedSentence)) {
     return CATEGORIES.MAIN_POINTS;
   }
 
-  // Check for findings
+  // Key findings from statistics or findings
   if (IMPORTANCE_PATTERNS.FINDING.test(normalizedSentence) || 
       IMPORTANCE_PATTERNS.STATISTIC.test(normalizedSentence)) {
     return CATEGORIES.KEY_FINDINGS;
   }
 
-  // Check for recommendations
-  if (IMPORTANCE_PATTERNS.RECOMMENDATION.test(normalizedSentence)) {
-    return CATEGORIES.RECOMMENDATIONS;
-  }
-
-  // Check for insights
-  if (IMPORTANCE_PATTERNS.IMPACT.test(normalizedSentence) || 
+  // Insights from causation or impact
+  if (IMPORTANCE_PATTERNS.CAUSATION.test(normalizedSentence) ||
+      IMPORTANCE_PATTERNS.IMPACT.test(normalizedSentence) ||
       IMPORTANCE_PATTERNS.CONCLUSION.test(normalizedSentence)) {
     return CATEGORIES.INSIGHTS;
   }
 
-  // Check for content overview
-  if (IMPORTANCE_PATTERNS.CONTENT_OVERVIEW.test(normalizedSentence)) {
-    return CATEGORIES.MAIN_POINTS;
+  // Recommendations and action items
+  if (IMPORTANCE_PATTERNS.RECOMMENDATION.test(normalizedSentence)) {
+    return CATEGORIES.RECOMMENDATIONS;
   }
 
   // Default to technical details
   return CATEGORIES.TECHNICAL_DETAILS;
+};
+
+const processInsights = (rawInsights) => {
+  if (!rawInsights || !rawInsights[0]?.generated_text) {
+    console.error("Invalid insights format:", rawInsights);
+    return null;
+  }
+
+  try {
+    const insights = safeJSONParse(rawInsights[0].generated_text, 'processInsights');
+    if (!insights) {
+      console.error("Failed to parse insights JSON");
+      return null;
+    }
+
+    // Validate and clean the insights
+    const validCategories = [
+      "Main Points",
+      "Key Findings",
+      "Insights",
+      "Action Items",
+      "Technical Details",
+      "Questions"
+    ];
+
+    const cleanedInsights = {};
+    validCategories.forEach(category => {
+      if (insights[category] && Array.isArray(insights[category])) {
+        // Filter out empty strings and duplicates
+        cleanedInsights[category] = [...new Set(
+          insights[category]
+            .filter(item => typeof item === 'string' && item.trim().length > 0)
+            .map(item => item.trim())
+        )];
+      }
+    });
+
+    // Only include categories that have content
+    return Object.fromEntries(
+      Object.entries(cleanedInsights)
+        .filter(([_, items]) => items && items.length > 0)
+    );
+  } catch (error) {
+    console.error("Error processing insights:", error);
+    return null;
+  }
 };
 
 /**

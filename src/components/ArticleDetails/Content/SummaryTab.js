@@ -1,13 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { extractInsightsWithAI, generateAISummary } from '../../../utils/aiUtils';
+import { extractInsightsWithAI, generateAISummary, generateConceptQuestions } from '../../../utils/aiUtils';
 import { extractKeyTakeaways } from '../../../utils/keyTakeaways';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSync, faRobot, faBook, faChevronDown, faChevronUp, faFileAlt, faLightbulb, faMagic, faBrain } from '@fortawesome/free-solid-svg-icons';
+import { Tooltip } from '@mui/material';
+import { 
+  faSync, faRobot, faBook, faChevronDown, faChevronUp, 
+  faFileAlt, faLightbulb, faMagic, faBrain, faQuestion, faPuzzlePiece 
+} from '@fortawesome/free-solid-svg-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CATEGORY_ICONS = {
-    Summary: faFileAlt,
-    Insights: faBrain,
+    'Summary': faFileAlt,
+    'Key Findings': faMagic,
+    'Insights': faBrain,
+    'Action Items': faBook,
+    'Main Points': faLightbulb,
+    'Technical Details': faRobot,
+    'Questions': faQuestion,
+    'Concepts': faPuzzlePiece
+};
+
+const CATEGORY_DESCRIPTIONS = {
+    'Summary': 'A concise 2-3 sentence overview of the main content',
+    'Key Findings': 'Important discoveries, statistics, and concrete results',
+    'Insights': 'Deeper analysis and interpretations of the content',
+    'Action Items': 'Recommended next steps and actionable suggestions',
+    'Main Points': 'Core arguments and central themes of the content',
+    'Technical Details': 'Specific technical information and implementation details',
+    'Questions': 'Important questions raised in the content',
+    'Concepts': 'Key concepts and deep questions related to the content'
 };
 
 const SummaryTab = ({ article }) => {
@@ -16,7 +37,9 @@ const SummaryTab = ({ article }) => {
     const [error, setError] = useState(null);
     const [useAI, setUseAI] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState({});
-    const [aiSummary, setAiSummary] = useState(null);
+    const [conceptQuestions, setConceptQuestions] = useState([]);
+    const [aiSummary, setAiSummary] = useState('');
+    const [conceptsLoading, setConceptsLoading] = useState(false);
     const [summaryLoading, setSummaryLoading] = useState(false);
 
     const toggleSection = (category) => {
@@ -26,19 +49,55 @@ const SummaryTab = ({ article }) => {
         }));
     };
 
+    const toggleAI = async () => {
+        setUseAI(!useAI);
+        // Clear previous AI results when switching
+        if (!useAI) {
+            setConceptQuestions([]);
+            setAiSummary('');
+        }
+    };
+
+    const generateConcepts = async () => {
+        if (!article?.plaintext || !useAI) return;
+        
+        setConceptsLoading(true);
+        try {
+            const questions = await generateConceptQuestions(article.plaintext);
+            setConceptQuestions(questions || []);
+        } catch (error) {
+            console.error('Error generating concepts:', error);
+        } finally {
+            setConceptsLoading(false);
+        }
+    };
+
     const generateSummary = async () => {
-        if (!article?.plaintext) return;
+        if (!article?.plaintext || !useAI) return;
 
         setSummaryLoading(true);
         try {
             const summary = await generateAISummary(article.plaintext);
-            setAiSummary(summary);
+            setAiSummary(summary || '');
         } catch (error) {
-            console.error('Failed to generate AI summary:', error);
+            console.error('Error generating summary:', error);
+            setAiSummary('');
         } finally {
             setSummaryLoading(false);
         }
     };
+
+    useEffect(() => {
+        processTakeaways();
+    }, [article?.plaintext, useAI]);
+
+    // Clear concepts when switching modes
+    useEffect(() => {
+        if (!useAI) {
+            setConceptQuestions([]);
+            setAiSummary('');
+        }
+    }, [useAI]);
 
     useEffect(() => {
         if (useAI && !aiSummary && article?.plaintext) {
@@ -61,31 +120,28 @@ const SummaryTab = ({ article }) => {
             if (useAI) {
                 try {
                     results = await extractInsightsWithAI(article.plaintext);
-                    if (Object.keys(results).length === 0) {
-                        results = extractKeyTakeaways(article.plaintext);
-                    }
                 } catch (error) {
-                    results = extractKeyTakeaways(article.plaintext);
+                    console.error('AI extraction failed:', error);
+                    setError('AI analysis failed. Please try again.');
+                    setLoading(false);
+                    return;
                 }
             } else {
                 results = extractKeyTakeaways(article.plaintext);
             }
 
-            if (Object.keys(results).length === 0) {
-                setError('No insights found in the article content.');
+            if (!results || Object.keys(results).length === 0) {
+                setError(useAI ? 'AI analysis failed to extract insights.' : 'No insights found in the article content.');
             } else {
                 setTakeaways(results);
             }
         } catch (error) {
+            console.error('Processing error:', error);
             setError('Failed to process article content');
         } finally {
             setLoading(false);
         }
     };
-
-    useEffect(() => {
-        processTakeaways();
-    }, [article?.plaintext, useAI]);
 
     const colorScheme = useAI
         ? 'bg-gradient-to-br from-purple-50 to-purple-100 text-purple-800'
@@ -96,7 +152,7 @@ const SummaryTab = ({ article }) => {
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
                 <motion.button
-                    onClick={() => !loading && setUseAI(!useAI)}
+                    onClick={() => !loading && toggleAI()}
                     disabled={loading}
                     className={`
                         flex items-center gap-3 px-6 py-3 rounded-xl font-medium text-sm
@@ -196,26 +252,19 @@ const SummaryTab = ({ article }) => {
                                                 className="text-xl"
                                             />
                                         </div>
-                                        <div>
-                                            <h3 className="font-semibold text-xl text-gray-800">Summary</h3>
-                                            {useAI && (
-                                                <span className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                                                    <FontAwesomeIcon icon={faRobot} className="text-purple-400" />
-                                                    AI Enhanced
-                                                </span>
-                                            )}
+                                        <div className="flex items-center">
+                                            <Tooltip 
+                                                title={CATEGORY_DESCRIPTIONS.Summary}
+                                                placement="top"
+                                                arrow
+                                            >
+                                                <h3 className="text-lg font-semibold text-gray-800 cursor-help">
+                                                    Summary
+                                                </h3>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        {summaryLoading && (
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                                className={`text-lg ${useAI ? 'text-purple-500' : 'text-blue-500'}`}
-                                            >
-                                                <FontAwesomeIcon icon={faSync} />
-                                            </motion.div>
-                                        )}
                                         <div className={`
                                             p-2 rounded-full transition-colors duration-200
                                             ${useAI ? 'text-purple-400' : 'text-blue-400'}
@@ -243,20 +292,28 @@ const SummaryTab = ({ article }) => {
                                             className="border-t border-gray-100"
                                         >
                                             <div className="p-6">
-                                                <p className="text-gray-700 leading-relaxed">
-                                                    {useAI ? (
-                                                        summaryLoading ? (
-                                                            <span className="text-purple-500 italic flex items-center gap-2">
-                                                                <FontAwesomeIcon icon={faSync} spin />
-                                                                Generating AI summary...
-                                                            </span>
-                                                        ) : aiSummary || (
-                                                            <span className="text-gray-500 italic">
-                                                                Failed to generate AI summary. Showing original summary.
-                                                            </span>
-                                                        )
-                                                    ) : article.summary}
-                                                </p>
+                                                {useAI && !aiSummary ? (
+                                                    <div className="text-center py-6">
+                                                        <button
+                                                            onClick={generateSummary}
+                                                            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200"
+                                                            disabled={summaryLoading}
+                                                        >
+                                                            {summaryLoading ? (
+                                                                <span className="flex items-center gap-2">
+                                                                    <FontAwesomeIcon icon={faSync} spin />
+                                                                    Generating Summary...
+                                                                </span>
+                                                            ) : (
+                                                                'Generate AI Summary'
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-gray-700">
+                                                        {useAI ? aiSummary || 'Failed to generate AI summary.' : article.summary}
+                                                    </p>
+                                                )}
                                             </div>
                                         </motion.div>
                                     )}
@@ -268,107 +325,208 @@ const SummaryTab = ({ article }) => {
                         {Object.keys(takeaways).length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {Object.entries(takeaways).map(([category, items]) => (
-                                    <motion.div
-                                        key={category}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={`
-                                            bg-white rounded-xl shadow-lg overflow-hidden
-                                            transform transition-all duration-300 hover:shadow-xl
-                                            ${useAI ? 'border-t-4 border-purple-500' : 'border-t-4 border-blue-500'}
-                                        `}
-                                    >
-                                        <button
-                                            onClick={() => toggleSection(category)}
+                                    items && items.length > 0 && (
+                                        <motion.div
+                                            key={category}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
                                             className={`
-                                                w-full p-6 flex justify-between items-center cursor-pointer
-                                                ${useAI 
-                                                    ? 'bg-gradient-to-r from-purple-50 to-white' 
-                                                    : 'bg-gradient-to-r from-blue-50 to-white'
-                                                }
+                                                bg-white rounded-xl shadow-lg overflow-hidden
+                                                transform transition-all duration-300 hover:shadow-xl
+                                                ${useAI ? 'border-l-4 border-purple-500' : 'border-l-4 border-blue-500'}
                                             `}
                                         >
-                                            <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => toggleSection(category)}
+                                                className={`
+                                                    w-full p-6 flex justify-between items-center cursor-pointer
+                                                    ${useAI 
+                                                        ? 'bg-gradient-to-r from-purple-50 to-white' 
+                                                        : 'bg-gradient-to-r from-blue-50 to-white'
+                                                    }
+                                                `}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`
+                                                        p-3 rounded-lg
+                                                        ${useAI ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
+                                                    `}>
+                                                        <FontAwesomeIcon 
+                                                            icon={CATEGORY_ICONS[category]} 
+                                                            className="text-xl"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <Tooltip 
+                                                            title={CATEGORY_DESCRIPTIONS[category]}
+                                                            placement="top"
+                                                            arrow
+                                                        >
+                                                            <h3 className="text-lg font-semibold text-gray-800 cursor-help">
+                                                                {category}
+                                                            </h3>
+                                                        </Tooltip>
+                                                    </div>
+                                                </div>
                                                 <div className={`
-                                                    p-3 rounded-lg
-                                                    ${useAI ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
+                                                    p-2 rounded-full transition-colors duration-200
+                                                    ${useAI ? 'text-purple-400' : 'text-blue-400'}
+                                                    ${useAI 
+                                                        ? 'hover:bg-purple-50 hover:text-purple-600' 
+                                                        : 'hover:bg-blue-50 hover:text-blue-600'
+                                                    }
                                                 `}>
                                                     <FontAwesomeIcon 
-                                                        icon={CATEGORY_ICONS[category] || faLightbulb}
-                                                        className="text-xl"
+                                                        icon={collapsedSections[category] ? faChevronDown : faChevronUp}
+                                                        className={`transform transition-transform duration-200 text-lg
+                                                            ${collapsedSections[category] ? '' : 'rotate-180'}
+                                                        `}
                                                     />
                                                 </div>
-                                                <h3 className="font-semibold text-lg text-gray-800">{category}</h3>
-                                            </div>
-                                            <div className={`
-                                                p-2 rounded-full transition-colors duration-200
-                                                ${useAI ? 'text-purple-400' : 'text-blue-400'}
-                                                ${useAI 
-                                                    ? 'hover:bg-purple-50 hover:text-purple-600' 
-                                                    : 'hover:bg-blue-50 hover:text-blue-600'
-                                                }
-                                            `}>
-                                                <FontAwesomeIcon 
-                                                    icon={collapsedSections[category] ? faChevronDown : faChevronUp}
-                                                    className={`transform transition-transform duration-200 text-lg
-                                                        ${collapsedSections[category] ? '' : 'rotate-180'}
-                                                    `}
-                                                />
-                                            </div>
-                                        </button>
-                                        <AnimatePresence>
-                                            {!collapsedSections[category] && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: "auto", opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.3 }}
-                                                    className="border-t border-gray-100"
-                                                >
-                                                    <div className="p-6 grid gap-4">
-                                                        {items.map((item, index) => (
-                                                            <motion.div
-                                                                key={index}
-                                                                initial={{ opacity: 0, y: 10 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                transition={{ delay: index * 0.1 }}
-                                                                className={`
-                                                                    p-4 rounded-lg bg-gray-50
-                                                                    transform transition-all duration-200
-                                                                    hover:shadow-md hover:-translate-y-0.5
-                                                                    ${useAI 
-                                                                        ? 'hover:bg-purple-50 border border-purple-100' 
-                                                                        : 'hover:bg-blue-50 border border-blue-100'
-                                                                    }
-                                                                `}
-                                                            >
-                                                                <p className="text-gray-700 text-sm leading-relaxed">{item}</p>
-                                                            </motion.div>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </motion.div>
+                                            </button>
+                                            <AnimatePresence>
+                                                {!collapsedSections[category] && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: "auto", opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.3 }}
+                                                        className="border-t border-gray-100"
+                                                    >
+                                                        <div className="p-6">
+                                                            <ul className="space-y-3">
+                                                                {items.map((item, index) => (
+                                                                    <li key={index} className="flex items-start">
+                                                                        <span className={`mr-2 ${useAI ? 'text-purple-500' : 'text-blue-500'}`}>•</span>
+                                                                        <p className="text-gray-700">{item}</p>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </motion.div>
+                                    )
                                 ))}
                             </div>
-                        ) : !article?.summary && (
-                            <motion.div
-                                key="empty"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
+                        ) : (
+                            <div className="text-center text-gray-500 py-8">
+                                No insights available.
+                            </div>
+                        )}
+
+                        {/* Key Concepts Section */}
+                        <motion.div
+                            key="concepts"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`
+                                mt-6 bg-white rounded-xl shadow-lg overflow-hidden
+                                transform transition-all duration-300 hover:shadow-xl
+                                ${useAI ? 'border-l-4 border-purple-500' : 'border-l-4 border-blue-500'}
+                            `}
+                        >
+                            <button
+                                onClick={() => toggleSection('Concepts')}
                                 className={`
-                                    text-center p-8 rounded-xl shadow-lg
-                                    ${useAI ? 'bg-purple-50' : 'bg-blue-50'}
+                                    w-full p-6 flex justify-between items-center cursor-pointer
+                                    ${useAI 
+                                        ? 'bg-gradient-to-r from-purple-50 to-white' 
+                                        : 'bg-gradient-to-r from-blue-50 to-white'
+                                    }
                                 `}
                             >
-                                <div className="text-xl font-medium text-gray-800 mb-2">No insights found</div>
-                                <div className="text-sm text-gray-600">
-                                    Try switching to {useAI ? 'rule-based' : 'AI'} analysis
+                                <div className="flex items-center gap-4">
+                                    <div className={`
+                                        p-3 rounded-lg
+                                        ${useAI ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
+                                    `}>
+                                        <FontAwesomeIcon 
+                                            icon={CATEGORY_ICONS.Concepts} 
+                                            className="text-xl"
+                                        />
+                                    </div>
+                                    <div className="flex items-center">
+                                        <Tooltip 
+                                            title={CATEGORY_DESCRIPTIONS.Concepts}
+                                            placement="top"
+                                            arrow
+                                        >
+                                            <h3 className="text-lg font-semibold text-gray-800 cursor-help">
+                                                Key Concepts & Questions
+                                            </h3>
+                                        </Tooltip>
+                                    </div>
                                 </div>
-                            </motion.div>
-                        )}
+                                <div className={`
+                                    p-2 rounded-full transition-colors duration-200
+                                    ${useAI ? 'text-purple-400' : 'text-blue-400'}
+                                    ${useAI 
+                                        ? 'hover:bg-purple-50 hover:text-purple-600' 
+                                        : 'hover:bg-blue-50 hover:text-blue-600'
+                                    }
+                                `}>
+                                    <FontAwesomeIcon 
+                                        icon={collapsedSections.Concepts ? faChevronDown : faChevronUp}
+                                        className={`transform transition-transform duration-200 text-lg
+                                            ${collapsedSections.Concepts ? '' : 'rotate-180'}
+                                        `}
+                                    />
+                                </div>
+                            </button>
+                            <AnimatePresence>
+                                {!collapsedSections.Concepts && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3 }}
+                                        className="border-t border-gray-100"
+                                    >
+                                        <div className="p-6">
+                                            {!useAI ? (
+                                                <div className="text-center py-6">
+                                                    <p className="text-gray-600 mb-4">
+                                                        Switch to AI mode to generate deep, thought-provoking questions about this article.
+                                                    </p>
+                                                    <button
+                                                        onClick={toggleAI}
+                                                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200"
+                                                    >
+                                                        Enable AI Mode
+                                                    </button>
+                                                </div>
+                                            ) : conceptsLoading ? (
+                                                <div className="animate-pulse space-y-3">
+                                                    <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                                                    <div className="h-4 bg-gray-100 rounded w-2/3"></div>
+                                                    <div className="h-4 bg-gray-100 rounded w-4/5"></div>
+                                                </div>
+                                            ) : conceptQuestions.length > 0 ? (
+                                                <ul className="space-y-3">
+                                                    {conceptQuestions.map((question, index) => (
+                                                        <li key={index} className="flex items-start">
+                                                            <span className={`mr-2 ${useAI ? 'text-purple-500' : 'text-blue-500'}`}>•</span>
+                                                            <p className="text-gray-700">{question}</p>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <div className="text-center py-6">
+                                                    <button
+                                                        onClick={generateConcepts}
+                                                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200"
+                                                    >
+                                                        Generate Concepts
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
