@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHighlighter, FaTimes, FaEdit, FaStickyNote } from 'react-icons/fa';
+import { FaHighlighter, FaTimes, FaEdit, FaStickyNote, FaBook } from 'react-icons/fa';
 
 const HIGHLIGHT_COLORS = {
   yellow: { bg: 'bg-yellow-200', text: 'text-yellow-800', border: 'border-yellow-300' },
@@ -16,6 +16,7 @@ const HighlightManager = ({
   isHighlighting,
   setIsHighlighting,
   onAddNote,
+  onLookupWord
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
 
@@ -24,6 +25,20 @@ const HighlightManager = ({
     setShowColorPicker(false);
     setIsHighlighting(true);
   }, [setActiveHighlightColor, setIsHighlighting]);
+
+  const handleDictionaryClick = useCallback(() => {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+    
+    if (selectedText && selectedText.split(/\s+/).length === 1) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      onLookupWord(selectedText, {
+        x: rect.left + window.scrollX,
+        y: rect.top + window.scrollY
+      });
+    }
+  }, [onLookupWord]);
 
   return (
     <motion.div 
@@ -42,6 +57,32 @@ const HighlightManager = ({
         >
           <FaHighlighter />
         </button>
+
+        <button
+          onClick={handleDictionaryClick}
+          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          title="Look up in Dictionary"
+        >
+          <FaBook />
+        </button>
+
+        <button
+          onClick={onAddNote}
+          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          title="Add Marginal Note"
+        >
+          <FaStickyNote />
+        </button>
+
+        {isHighlighting && (
+          <button
+            onClick={() => setIsHighlighting(false)}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
+            title="Cancel Highlighting"
+          >
+            <FaTimes />
+          </button>
+        )}
 
         <AnimatePresence>
           {showColorPicker && (
@@ -64,24 +105,6 @@ const HighlightManager = ({
             </motion.div>
           )}
         </AnimatePresence>
-
-        <button
-          onClick={onAddNote}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          title="Add Note"
-        >
-          <FaStickyNote />
-        </button>
-
-        {isHighlighting && (
-          <button
-            onClick={() => setIsHighlighting(false)}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
-            title="Cancel Highlighting"
-          >
-            <FaTimes />
-          </button>
-        )}
       </div>
     </motion.div>
   );

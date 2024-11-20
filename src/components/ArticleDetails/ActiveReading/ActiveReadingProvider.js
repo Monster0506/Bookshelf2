@@ -13,6 +13,7 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
+import DictionaryOverlay from '../../Dictionary/DictionaryOverlay';
 
 // Enhanced logger utility
 const logger = {
@@ -52,6 +53,9 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
   const [activeHighlightColor, setActiveHighlightColor] = useState('yellow');
   const [isHighlighting, setIsHighlighting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedWord, setSelectedWord] = useState(null);
+  const [wordPosition, setWordPosition] = useState(null);
+  const [error, setError] = useState(null);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -142,6 +146,7 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
           articleId,
           userId: currentUser.uid
         });
+        setError(error);
       } finally {
         setIsLoading(false);
       }
@@ -189,6 +194,7 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
         range,
         color
       });
+      setError(error);
       return null;
     }
   }, [articleId, currentUser, activeHighlightColor]);
@@ -210,6 +216,7 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
         highlightId,
         errorMessage: error.message
       });
+      setError(error);
     }
   }, [currentUser]);
 
@@ -233,6 +240,7 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
       return docRef.id;
     } catch (error) {
       console.error('Error adding note:', error);
+      setError(error);
       return null;
     }
   }, [articleId, currentUser, activeHighlightColor]);
@@ -252,6 +260,7 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
       ));
     } catch (error) {
       console.error('Error editing note:', error);
+      setError(error);
     }
   }, [currentUser]);
 
@@ -263,27 +272,47 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
       setNotes(prev => prev.filter(note => note.id !== noteId));
     } catch (error) {
       console.error('Error deleting note:', error);
+      setError(error);
     }
   }, [currentUser]);
+
+  const handleLookupWord = useCallback((word, position) => {
+    setSelectedWord(word);
+    setWordPosition(position);
+  }, []);
+
+  const handleCloseDictionary = useCallback(() => {
+    setSelectedWord(null);
+    setWordPosition(null);
+  }, []);
 
   const value = {
     highlights,
     notes,
     activeHighlightColor,
-    isHighlighting,
-    isLoading,
     setActiveHighlightColor,
+    isHighlighting,
     setIsHighlighting,
+    loading: isLoading,
+    error,
     addHighlight,
     removeHighlight,
     addNote,
     editNote,
     deleteNote,
+    onLookupWord: handleLookupWord
   };
 
   return (
     <ActiveReadingContext.Provider value={value}>
       {children}
+      {selectedWord && (
+        <DictionaryOverlay
+          word={selectedWord}
+          position={wordPosition}
+          onClose={handleCloseDictionary}
+        />
+      )}
     </ActiveReadingContext.Provider>
   );
 };

@@ -52,6 +52,7 @@ function ContentSection({
     addNote,
     editNote,
     deleteNote,
+    onLookupWord
   } = useActiveReading();
 
   const [selectedHighlight, setSelectedHighlight] = useState(null);
@@ -300,6 +301,7 @@ function ContentSection({
         isHighlighting={isHighlighting}
         setIsHighlighting={setIsHighlighting}
         onAddNote={handleAddNote}
+        onLookupWord={onLookupWord}
       />
       
       <MarginNotes
