@@ -150,20 +150,18 @@ const processInsights = (rawInsights) => {
  * Extract key takeaways using rule-based approach
  */
 export const extractKeyTakeaways = (text) => {
-  console.log('Starting rule-based extraction');
   
   if (!text) {
-    console.log('No text provided');
+    console.error('No text provided');
     return {};
   }
 
   try {
     // Split text into sentences
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    console.log(`Found ${sentences.length} sentences`);
 
     if (sentences.length === 0) {
-      console.log('No sentences found');
+      console.error('No sentences found');
       return {};
     }
 
@@ -181,11 +179,6 @@ export const extractKeyTakeaways = (text) => {
       // Only include sentences with a score > 0
       if (score > 0) {
         const category = categorizeSentence(trimmedSentence, score);
-        // console.log(`Categorized sentence ${index + 1}:`, { 
-        //   category, 
-        //   score, 
-        //   sentence: trimmedSentence.substring(0, 50) + '...' 
-        // });
         
         if (!results[category].includes(trimmedSentence)) {
           results[category].push(trimmedSentence);
@@ -203,7 +196,6 @@ export const extractKeyTakeaways = (text) => {
       }
     });
 
-    console.log('Final takeaways:', results);
     return results;
   } catch (error) {
     console.error('Error extracting takeaways:', error);

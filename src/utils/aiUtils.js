@@ -114,13 +114,10 @@ export function safeJSONParse(text, source = '') {
       .replace(/\n+/g, ' ')      // Replace multiple newlines with space
       .replace(/\s+/g, ' ');     // Normalize whitespace
 
-    console.log(`[${source}] Attempting to parse JSON:`, cleanText);
     
     const parsed = JSON.parse(cleanText);
-    console.log(`[${source}] Successfully parsed JSON:`, parsed);
     return parsed;
   } catch (error) {
-    console.error(`[${source}] JSON Parse Error:`, error.message);
     console.error('Original text:', text);
     return null;
   }
@@ -128,7 +125,7 @@ export function safeJSONParse(text, source = '') {
 
 export async function callHuggingFaceAPI(url, prompt, text) {
   if (!API_TOKEN) {
-    console.log("AI features are disabled");
+    console.error("AI features are disabled");
     return null;
   }
 
@@ -136,7 +133,6 @@ export async function callHuggingFaceAPI(url, prompt, text) {
   const userMessage = `Here is the text to analyze:\n\n${text}\n\n[INST] Please provide your response following the format specified above: [/INST]`;
 
   try {
-    console.log("Sending request to API with prompt:", systemMessage + userMessage);
 
     const response = await fetch(url, {
       method: "POST",
@@ -164,7 +160,6 @@ export async function callHuggingFaceAPI(url, prompt, text) {
     }
 
     const result = await response.json();
-    console.log("Raw API Response:", result);
     return result;
   } catch (error) {
     console.error("Error in API call:", error);
@@ -174,7 +169,7 @@ export async function callHuggingFaceAPI(url, prompt, text) {
 
 export async function categorizeText(text, categories) {
   if (!text || !categories || categories.length === 0) {
-    console.log("Invalid input for categorizeText");
+    console.error("Invalid input for categorizeText");
     return null;
   }
 
@@ -209,8 +204,6 @@ export async function extractInsightsWithAI(text) {
       console.error("No result from API");
       return null;
     }
-
-    console.log("Raw generated text:", result[0].generated_text);
 
     // Try to extract JSON from the response
     const jsonMatch = result[0].generated_text.match(/\{[\s\S]*\}/);
@@ -258,7 +251,6 @@ export async function generateAISummary(text) {
       return null;
     }
 
-    console.log("AI generated summary:", result[0].generated_text);
     
     // Clean up the response
     let summary = result[0].generated_text

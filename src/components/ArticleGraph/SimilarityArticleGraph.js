@@ -1,108 +1,166 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { ForceGraph3D } from "react-force-graph";
+import * as THREE from 'three';
 import {
   fetchUserArticles,
   computeTFIDF,
   cosineSimilarity,
-} from "../../utils/articleUtils"; // Import the utility functions
-import { useNavigate } from "react-router-dom";
+} from "../../utils/articleUtils";
+import ArticleHoverCard from "./ArticleHoverCard";
+
+const createTextSprite = (text, color = '#ffffff', backgroundColor = 'rgba(0,0,0,0.8)') => {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  
+  // Set canvas size
+  const fontSize = 24;
+  context.font = `${fontSize}px Arial`;
+  const textWidth = context.measureText(text).width;
+  canvas.width = textWidth + 20;
+  canvas.height = fontSize + 16;
+
+  // Draw background
+  context.fillStyle = backgroundColor;
+  context.strokeStyle = color;
+  context.lineWidth = 2;
+  context.roundRect(0, 0, canvas.width, canvas.height, 6);
+  context.fill();
+  context.stroke();
+
+  // Draw text
+  context.fillStyle = color;
+  context.font = `${fontSize}px Arial`;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  // Create texture and sprite
+  const texture = new THREE.Texture(canvas);
+  texture.needsUpdate = true;
+
+  const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(spriteMaterial);
+  
+  // Scale sprite based on text length
+  const scaleFactor = 0.05;
+  sprite.scale.set(canvas.width * scaleFactor, canvas.height * scaleFactor, 1);
+
+  return sprite;
+};
 
 const SimilarityArticleGraph = () => {
   const { currentUser } = useAuth();
   const [articles, setArticles] = useState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchArticles = async () => {
-      try {
-        const articlesData = await fetchUserArticles(currentUser);
-        setArticles(articlesData);
-      } catch (error) {
-        console.error("Error fetching articles:", error);
+    const loadArticles = async () => {
+      const fetchedArticles = await fetchUserArticles(currentUser);
+      if (Array.isArray(fetchedArticles)) {
+        setArticles(fetchedArticles);
+      } else {
+        console.error('Fetched articles is not an array:', fetchedArticles);
+        setArticles([]);
       }
     };
-
-    if (currentUser) {
-      fetchArticles();
-    }
+    loadArticles();
   }, [currentUser]);
 
-  const generateColorFromTitle = (title) => {
-    let hash = 0;
-    for (let i = 0; i < title.length; i++) {
-      hash = title.charCodeAt(i) + ((hash << 5) - hash);
+  const createGraphData = useCallback((articles) => {
+    if (!articles || !Array.isArray(articles) || articles.length === 0) {
+      console.error('No articles to process');
+      return { nodes: [], links: [] };
     }
 
-    const r = (hash >> 24) & 0xff;
-    const g = (hash >> 16) & 0xff;
-    const b = (hash >> 8) & 0xff;
+    
+    // Create nodes first
+    const nodes = articles.map(article => ({
+      ...article, // Include all article properties
+      id: article.id,
+      name: article.title,
+      title: article.title,
+      content: article.plaintext || article.content || article.title || '',
+      color: '#3B82F6',
+      val: 1,
+      desc: article.description || article.desc,
+      tags: article.tags || []
+    }));
 
-    return `rgb(${Math.abs(r)}, ${Math.abs(g)}, ${Math.abs(b)})`;
-  };
+    // Compute TF-IDF vectors for all articles
+    const tfidfVectors = computeTFIDF(nodes);
 
-  const createGraphData = (articles) => {
-    const nodes = [];
+    // Create links based on similarity
     const links = [];
-
-    articles.forEach((article) => {
-      nodes.push({
-        id: article.id,
-        name: article.title,
-        color: generateColorFromTitle(article.title),
-      });
-    });
-
-    // Compute TFIDF vectors for all articles
-    const tfidfVectors = computeTFIDF(articles);
-
-    for (let i = 0; i < articles.length; i++) {
-      const targetVector = tfidfVectors[i];
-      if (!targetVector) {
-        console.error("Target vector is undefined for article index:", i);
-        continue;
-      }
-
-      for (let j = i + 1; j < articles.length; j++) {
-        const similarity = cosineSimilarity(targetVector, tfidfVectors[j]);
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const similarity = cosineSimilarity(tfidfVectors[i], tfidfVectors[j]);
         if (similarity > 0.05) {
           links.push({
-            source: articles[i].id,
-            target: articles[j].id,
-            width: similarity * 10, // Increase line thickness based on similarity
-            color: generateColorFromTitle(articles[i].id),
+            source: nodes[i].id,
+            target: nodes[j].id,
+            value: similarity,
+            color: `rgba(75, 85, 99, ${similarity*100})`,
           });
         }
       }
     }
 
     return { nodes, links };
-  };
+  }, []);
+
+  // Memoize graph data
+  const graphData = useMemo(() => createGraphData(articles), [articles, createGraphData]);
+
+  const handleNodeClick = useCallback(node => {
+    navigate(`/articles/${node.id}`);
+  }, [navigate]);
+
+  const handleNodeHover = useCallback(node => {
+    setSelectedNode(node);
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
+  // Memoize node object generation
+  const createNodeObject = useCallback((node) => {
+    const color = selectedNode === node ? '#ffffff' : '#aaaaaa';
+    const bgColor = selectedNode === node ? '#3B82F6' : 'rgba(0,0,0,0.5)';
+    return createTextSprite(node.name, color, bgColor);
+  }, [selectedNode]);
 
   return (
-    <div style={{ backgroundColor: "#000000" }}>
+    <div>
       <ForceGraph3D
-        graphData={createGraphData(articles)}
-        nodeAutoColorBy="group"
-        onNodeClick={(node) => navigate(`/articles/${node.id}`)}
-        nodeLabel={(node) => `${node.name}`}
-        linkDirectionalParticles={0}
-        linkDirectionalParticleWidth={1.5}
-        linkCurvature={0.3}
-        linkWidth={(link) => Math.sqrt(link.width || 1)}
+        graphData={graphData}
+        nodeLabel="title"
+        nodeColor="color"
+        nodeVal={node => node.val}
+        nodeRelSize={6}
+        linkColor="color"
+        linkWidth={link => link.value * 5}
+        linkOpacity={0.8}
+        linkDirectionalParticles={4}
+        linkDirectionalParticleSpeed={0.005}
+        onNodeClick={handleNodeClick}
+        onNodeHover={handleNodeHover}
+        nodeThreeObject={createNodeObject}
+        nodeThreeObjectExtend={true}
+        controlType="orbit"
+        enableNodeDrag={true}
+        enableNavigationControls={true}
+        showNavInfo={true}
         backgroundColor="#000000"
-        linkDirectionalArrowLength={8}
-        linkDirectionalArrowRelPos={0.5}
-        d3VelocityDecay={0.25}
-        d3AlphaDecay={0.008}
-        d3Force={(force) => {
-          if (force.name === "charge") {
-            force.strength(-150);
-          }
-          return force;
-        }}
         width={1200}
         height={600}
+      />
+      <ArticleHoverCard 
+        article={selectedNode} 
+        onDismiss={handleDismiss}
       />
     </div>
   );

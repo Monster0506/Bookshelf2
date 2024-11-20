@@ -146,9 +146,7 @@ export const processArticleContent = async (content, useAI = true) => {
     }
 
     try {
-        console.log(`Processing content using ${useAI ? 'AI' : 'rule-based'} extraction...`);
         const takeaways = await extractKeyTakeaways(content, useAI);
-        console.log('Extracted takeaways:', takeaways);
         return takeaways; 
     } catch (error) {
         console.error('Error processing content:', error);
@@ -158,10 +156,8 @@ export const processArticleContent = async (content, useAI = true) => {
 
 export const fetchAndProcessContent = async (url) => {
   try {
-    console.log("Fetching content from URL:", url);
     const proxyUrl = "https://cors-proxy.tjraklovits.workers.dev/api/";
     const fullUrl = `${proxyUrl}${url}`;
-    console.log("Using proxy URL:", fullUrl);
 
     const response = await fetch(fullUrl, {
       method: "GET",
@@ -176,13 +172,10 @@ export const fetchAndProcessContent = async (url) => {
         `Failed to fetch: ${response.status} ${response.statusText}`,
       );
     }
-
-    console.log("Successfully fetched content, parsing HTML...");
     const htmlContent = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, "text/html");
 
-    console.log("Extracting article content with Readability...");
     const reader = new Readability(doc);
     const article = reader.parse();
 
@@ -191,17 +184,11 @@ export const fetchAndProcessContent = async (url) => {
       throw new Error("Could not parse article content.");
     }
 
-    console.log("Calculating reading metrics...");
     const wordCount = article.textContent.trim().split(/\s+/).length;
     const readingMinutes = Math.ceil(wordCount / 200);
     const readingTime = `${readingMinutes} minute${readingMinutes > 1 ? "s" : ""}`;
-    console.log("Reading metrics:", { wordCount, readingMinutes });
-
-    // Generate a summary
-    console.log("Generating article summary...");
     const summary = summarizeContent(article.textContent);
 
-    console.log("Content processing complete");
     return {
       content: article.content,
       plaintext: article.textContent,

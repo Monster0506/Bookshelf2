@@ -67,7 +67,7 @@ export const cosineSimilarity = (vectorA, vectorB) => {
     Object.keys(vectorA).length === 0 ||
     Object.keys(vectorB).length === 0
   ) {
-    console.log("Returning 0 due to empty vector");
+    console.warn("Returning 0 due to empty vector");
     return 0;
   }
 
@@ -88,7 +88,7 @@ export const cosineSimilarity = (vectorA, vectorB) => {
 
   // Return 0 if either magnitude is 0 to prevent division by zero
   if (magnitudeA === 0 || magnitudeB === 0) {
-    console.log("Returning 0 due to zero magnitude");
+    console.warn("Returning 0 due to zero magnitude");
     return 0;
   }
 
@@ -106,14 +106,14 @@ export const findRelatedArticles = (targetArticle, articles, topN = 5) => {
   );
 
   if (targetIndex === -1) {
-    console.log("Target article not found in articles list");
+    console.warn("Target article not found in articles list");
     return [[], []];
   }
 
   const targetVector = tfidfVectors[targetIndex];
 
   if (!targetVector) {
-    console.log("Target vector is undefined");
+    console.warn("Target vector is undefined");
     return [[], []];
   }
 
