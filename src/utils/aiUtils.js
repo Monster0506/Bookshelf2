@@ -6,6 +6,7 @@
 const HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
 
 const API_TOKEN = process.env.REACT_APP_HUGGING_FACE_API_KEY;
+
 // Prompt templates for better AI guidance
 const SYSTEM_PROMPTS = {
   concepts: `<INST>You are an expert at generating deep, thought-provoking questions about complex topics. For the given text, generate 3-5 open-ended questions that:
@@ -13,20 +14,38 @@ const SYSTEM_PROMPTS = {
 1. Question Format:
    - Focus on broader implications and connections
    - Encourage critical thinking and analysis
-   - Relate to fundamental concepts and principles
-   - Challenge assumptions and explore alternatives
+   - Challenge assumptions and explore possibilities
 
-2. Guidelines:
-   - Each question should be clear but complex
-   - Avoid simple yes/no questions
-   - Connect ideas across different parts of the text
-   - Encourage exploration of deeper meanings
+2. Response Format:
+   - Return ONLY a valid JSON object with this exact structure:
+   {
+     "questions": [
+       "First question here",
+       "Second question here",
+       "Third question here"
+     ]
+   }
+   - No additional text or formatting
+   - No numbered lists
+   - Just the JSON object
 
-3. Output Format:
-   Return a JSON array of strings, each containing one question.
-Example:
-["How might the principles discussed in this text apply to other domains?",
- "What underlying assumptions challenge the author's main arguments?"]</INST>`,
+3. Question Guidelines:
+   - Make questions relevant to the text's themes
+   - Explore potential future implications
+   - Consider historical or broader context
+   - Examine underlying assumptions
+   - Connect to larger fields of study
+
+4. Example Response Format:
+   {
+     "questions": [
+       "How might advances in quantum computing affect current cryptographic security methods?",
+       "What implications does this technology have for privacy in digital communications?",
+       "How could these developments reshape the future of secure data transmission?"
+     ]
+   }
+
+Now, analyze the following text and generate thought-provoking questions following these guidelines exactly:</INST>`,
   
   categorize: `You are an expert at analyzing and categorizing text content. For the given text, analyze it and categorize relevant parts into the provided categories. 
                Only select text that strongly matches the categories, with high confidence. Format your response as JSON.`,
@@ -258,27 +277,29 @@ export async function generateAISummary(text) {
 }
 
 export async function generateConceptQuestions(text) {
-  const result = await callHuggingFaceAPI(
-    HUGGING_FACE_API_URL,
-    SYSTEM_PROMPTS.concepts,
-    text
-  );
-
-  if (!result || !result[0]?.generated_text) {
-    console.error("Failed to generate concept questions");
-    return null;
-  }
-
   try {
-    const questions = safeJSONParse(result[0].generated_text, 'generateConceptQuestions');
-    if (!Array.isArray(questions)) {
-      console.error("Invalid questions format:", questions);
+    const userMessage = `\n\n${text}\n</INST>`;
+    const response = await callHuggingFaceAPI(HUGGING_FACE_API_URL, SYSTEM_PROMPTS.concepts, text);
+    
+    if (!response) {
+      console.error('No response from AI');
       return null;
     }
 
-    return questions.filter(q => typeof q === 'string' && q.trim().length > 0);
+    try {
+      const parsed = JSON.parse(response[0].generated_text);
+      if (!parsed || !parsed.questions || !Array.isArray(parsed.questions)) {
+        console.error('Invalid questions format:', parsed);
+        return null;
+      }
+      return parsed.questions;
+    } catch (error) {
+      console.error('[generateConceptQuestions] JSON Parse Error:', error);
+      console.error('Original text: ', response[0].generated_text);
+      return null;
+    }
   } catch (error) {
-    console.error("Error processing concept questions:", error);
+    console.error('Failed to generate concept questions:', error);
     return null;
   }
 }
