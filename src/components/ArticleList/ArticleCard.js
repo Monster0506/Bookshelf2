@@ -66,7 +66,7 @@ function ArticleCard({
         </Link>
       </div>
 
-      {article.folderId && (console.log(article.folderId) || true) && (
+      {article.folderId && (
         <motion.div 
           className="flex items-center text-sm text-gray-600 mb-3 bg-gray-100 rounded-lg p-2 w-fit"
           whileHover={{ scale: 1.05 }}

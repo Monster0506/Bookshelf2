@@ -1,50 +1,64 @@
 import React, { useState } from "react";
 import SimilarityArticleGraph from "../components/ArticleGraph/SimilarityArticleGraph";
 import TagsArticleGraph from "../components/ArticleGraph/TagsArticleGraph";
+import TimelineArticleGraph from "../components/ArticleGraph/TimelineArticleGraph";
 
 const ArticleGraph = () => {
-  const [showSimilarityGraph, setShowSimilarityGraph] = useState(false);
+  const [currentView, setCurrentView] = useState("tags");
 
-  const handleToggle = () => {
-    setShowSimilarityGraph(!showSimilarityGraph);
+  const views = {
+    tags: {
+      name: "Tags Graph",
+      component: TagsArticleGraph,
+      description: "View articles connected by shared tags"
+    },
+    similarity: {
+      name: "Similarity Graph",
+      component: SimilarityArticleGraph,
+      description: "View articles connected by content similarity"
+    },
+    timeline: {
+      name: "Timeline View",
+      component: TimelineArticleGraph,
+      description: "View articles arranged chronologically"
+    }
   };
 
   return (
-    <div className="p-6 bg-gray-100 h-screen">
+    <div className="p-6 bg-gray-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        {/* Toggle Button */}
-        <div className="flex justify-center mb-6">
-          <button
-            onClick={handleToggle}
-            className="px-6 py-2 text-lg font-semibold text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300"
-          >
-            {showSimilarityGraph
-              ? "Switch to Tags Graph"
-              : "Switch to Similarity Graph"}
-          </button>
+        {/* View Selector */}
+        <div className="flex flex-col items-center mb-6 space-y-4">
+          <div className="flex flex-wrap justify-center gap-4">
+            {Object.entries(views).map(([key, view]) => (
+              <button
+                key={key}
+                onClick={() => setCurrentView(key)}
+                className={`px-6 py-2 text-lg font-semibold rounded-lg shadow-md transition duration-300 ${
+                  currentView === key
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-blue-50"
+                }`}
+              >
+                {view.name}
+              </button>
+            ))}
+          </div>
+          <p className="text-gray-600 text-center">
+            {views[currentView].description}
+          </p>
         </div>
 
         {/* Graph Container */}
-        <div className="bg-black p-4 rounded-lg shadow-md h-full">
-          {showSimilarityGraph ? (
+        <div className={`bg-black p-4 rounded-lg shadow-md ${currentView === 'timeline' ? 'min-h-[600px]' : ''}`}>
+          <div>
+            <h2 className="text-3xl font-semibold mb-4 text-center text-white">
+              {views[currentView].name}
+            </h2>
             <div>
-              <h2 className="text-3xl font-semibold mb-4 text-center text-gray-800">
-                Articles Graph by Similarity
-              </h2>
-              <div>
-                <SimilarityArticleGraph />
-              </div>
+              {React.createElement(views[currentView].component)}
             </div>
-          ) : (
-            <div>
-              <h2 className="text-3xl font-semibold mb-4 text-center text-gray-800">
-                Articles Graph by Tags
-              </h2>
-              <div>
-                <TagsArticleGraph />
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

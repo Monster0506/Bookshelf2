@@ -33,7 +33,7 @@ const MarginNotes = ({ notes, onAddNote, onEditNote, onDeleteNote }) => {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleEditStart = (note) => {
     setEditingNoteId(note.id);

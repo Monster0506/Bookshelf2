@@ -39,7 +39,6 @@ function AddArticle() {
       if (!currentUser) return;
       try {
         const userFolders = await fetchUserFolders(currentUser.uid);
-        console.log("Received folder data:", userFolders);
         setFolders(userFolders);
       } catch (error) {
         console.error("Error fetching folders:", error);
@@ -206,7 +205,6 @@ function AddArticle() {
       // URL Content Processing
       if (filetype === "URL") {
         try {
-          console.log("Processing URL content...");
           const {
             content,
             readingTime,
@@ -224,7 +222,6 @@ function AddArticle() {
             summary: articleSummary,
             words: wordCount.toString(),
           };
-          console.log("Successfully processed URL content");
         } catch (contentError) {
           console.error("Failed to process URL content:", contentError);
           setError(
@@ -240,7 +237,6 @@ function AddArticle() {
       } else if ((filetype === "HTML" || filetype === "PDF") && file) {
         sourceURL = await uploadFileToStorage();
         try {
-          console.log("Processing file content...");
           const {
             content,
             readingTime,
@@ -258,7 +254,6 @@ function AddArticle() {
             summary: articleSummary,
             words: wordCount.toString(),
           };
-          console.log("Successfully processed file content");
         } catch (contentError) {
           console.error("Failed to process file content:", contentError);
           setError(
@@ -289,12 +284,9 @@ function AddArticle() {
         sourceURL = ""; // No URL for plaintext input
       }
 
-      console.log("Selected folder:", selectedFolder);
       const folderName =
         folders.find((folder) => folder.id === selectedFolder)?.name || "";
-      console.log("Folder name:", folderName);
 
-      console.log("Adding article to database...");
       const result = await addArticle({
         title,
         filetype,
@@ -318,16 +310,13 @@ function AddArticle() {
       }
 
       const articleId = result.id;
-      console.log("Article added successfully with ID:", articleId);
 
       // Track successful article addition
       logArticleAdd(articleId, selectedFolder);
 
       // Update folder with the new article ID if a folder is selected
       if (selectedFolder) {
-        console.log("Updating folder with article...");
         await updateFolderWithArticle(selectedFolder, articleId);
-        console.log("Successfully updated folder");
       }
 
       setSuccess("Article added successfully!");

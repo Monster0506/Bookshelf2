@@ -196,7 +196,7 @@ export const extractKeyTakeaways = (text) => {
       }
     });
 
-    return results;
+      return results;
   } catch (error) {
     console.error('Error extracting takeaways:', error);
     return {};

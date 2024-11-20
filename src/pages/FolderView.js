@@ -35,10 +35,8 @@ function FolderView() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Fetching folder data for ID:", folderId);
         const articlesData = await fetchArticlesInFolder(folderId);
         const folderData = await fetchFolder(folderId);
-        console.log("Folder data received:", folderData);
         
         if (!folderData.public && !currentUser) {
           setError("This folder is private. Please log in to view it.");
@@ -51,31 +49,23 @@ function FolderView() {
 
         // Fetch parent folder if it exists
         if (folderData.parentId) {
-          console.log("Fetching parent folder:", folderData.parentId);
           const parentData = await fetchFolder(folderData.parentId);
-          console.log("Parent folder data:", parentData);
           setParentFolder(parentData);
         } else {
           setParentFolder(null);
         }
         
         // Set subfolders if they exist
-        console.log("Checking for subfolders in:", folderData);
         if (folderData.subfolders && folderData.subfolders.length > 0) {
-          console.log("Found subfolders:", folderData.subfolders);
           const subfoldersData = await Promise.all(
             folderData.subfolders.map(async childId => {
-              console.log("Fetching subfolder:", childId);
               const subfolder = await fetchFolder(childId);
-              console.log("Subfolder data:", subfolder);
               return subfolder;
             })
           );
           const validSubfolders = subfoldersData.filter(Boolean);
-          console.log("Valid subfolders:", validSubfolders);
           setSubfolders(validSubfolders);
         } else {
-          console.log("No subfolders found in folder data");
           setSubfolders([]);
         }
       } catch (err) {

@@ -151,7 +151,6 @@ function ArticleDetail() {
         });
         setArticle((prevArticle) => ({ ...prevArticle, note: noteText }));
         setNotes(noteText); // Update the notes state
-        console.log("Notes saved successfully.");
       } catch (error) {
         console.error("Error saving notes:", error);
       } finally {
