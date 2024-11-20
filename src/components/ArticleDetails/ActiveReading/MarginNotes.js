@@ -86,6 +86,11 @@ const MarginNotes = ({ notes, onAddNote, onEditNote, onDeleteNote }) => {
 
   const totalNotes = notes.length;
 
+  const handleCategoryClick = (category) => {
+    setActiveFilter(category);
+    setIsCollapsed(false);
+  };
+
   return (
     <div className="fixed left-0 top-32 flex items-start">
       <motion.div
@@ -104,27 +109,32 @@ const MarginNotes = ({ notes, onAddNote, onEditNote, onDeleteNote }) => {
               className="w-12 h-full py-4 flex flex-col items-center gap-3 border-r"
             >
               {Object.entries(NOTE_CATEGORIES).map(([key, { label, color }]) => (
-                <div 
+                <button 
                   key={key}
-                  className="relative group"
+                  onClick={() => handleCategoryClick(key)}
+                  className="relative group hover:scale-110 transition-transform"
                   title={`${label} (${noteCounts[key]})`}
                 >
-                  <div className={`w-6 h-6 rounded-full bg-${color}-100 border-2 border-${color}-400 flex items-center justify-center text-xs font-medium text-${color}-700`}>
+                  <div className={`w-6 h-6 rounded-full bg-${color}-100 border-2 border-${color}-400 flex items-center justify-center text-xs font-medium text-${color}-700 ${activeFilter === key ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}>
                     {noteCounts[key]}
                   </div>
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
                     {label}
                   </div>
-                </div>
+                </button>
               ))}
-              <div className="mt-auto relative group" title={`Total Notes: ${totalNotes}`}>
-                <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-gray-400 flex items-center justify-center text-xs font-medium text-gray-700">
+              <button 
+                className="mt-auto relative group hover:scale-110 transition-transform" 
+                onClick={() => handleCategoryClick('ALL')}
+                title={`All Notes (${totalNotes})`}
+              >
+                <div className={`w-6 h-6 rounded-full bg-gray-100 border-2 border-gray-400 flex items-center justify-center text-xs font-medium text-gray-700 ${activeFilter === 'ALL' ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}>
                   {totalNotes}
                 </div>
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  Total Notes
+                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                  All Notes
                 </div>
-              </div>
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
