@@ -5,8 +5,9 @@ const WIKTIONARY_API_URL = "https://en.wiktionary.org/api/rest_v1/page/html/";
 const FREE_DICTIONARY_API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/";
 
 export const DICTIONARY_SOURCES = {
+    FREE_DICTIONARY: 'free_dictionary',
     WIKTIONARY: 'wiktionary',
-    FREE_DICTIONARY: 'free_dictionary'
+
 };
 
 /**
@@ -44,6 +45,8 @@ const formatFreeDictionaryResponse = (apiData) => {
         difficulty: calculateWordDifficulty(entry.word)
     };
 };
+
+
 
 /**
  * Extract text content from HTML string
@@ -158,6 +161,7 @@ const fetchWiktionary = async (word) => {
     return parseWiktionaryHtml(htmlContent, word);
 };
 
+
 /**
  * Fetch dictionary data from specified source
  * @param {string} word - Word to look up
@@ -166,10 +170,13 @@ const fetchWiktionary = async (word) => {
  */
 export const fetchDictionaryData = async (word, source = DICTIONARY_SOURCES.FREE_DICTIONARY) => {
     try {
-        if (source === DICTIONARY_SOURCES.FREE_DICTIONARY) {
-            return await fetchFreeDictionary(word);
-        } else {
-            return await fetchWiktionary(word);
+        switch (source) {
+            case DICTIONARY_SOURCES.FREE_DICTIONARY:
+                return await fetchFreeDictionary(word);
+            case DICTIONARY_SOURCES.WIKTIONARY:
+                return await fetchWiktionary(word);
+            default:
+                throw new Error('Invalid dictionary source');
         }
     } catch (error) {
         console.error('Dictionary API error:', error);

@@ -23,6 +23,16 @@ In today's digital age, we're overwhelmed with information but often lack the to
 - Dynamic text scaling and formatting
 - Smart content summarization
 
+### Intelligent Dictionary
+
+- Instant word lookup with multi-source support
+- Toggle between Free Dictionary and Wiktionary
+- Context-aware definitions and examples
+- Support for proper nouns and specialized terms
+- Draggable dictionary overlay
+- Text-to-speech pronunciation
+- Part of speech labeling
+
 ### Article Management
 
 - Organize and manage your reading materials
@@ -76,6 +86,8 @@ In today's digital age, we're overwhelmed with information but often lack the to
 - React Markdown - Note editing
 - Vite - Build tool
 - Framer Motion - Animations
+- Free Dictionary API - Primary dictionary source
+- Wiktionary API - Secondary dictionary source
 
 ## Getting Started
 
@@ -124,4 +136,3 @@ VITE_FIREBASE_APP_ID=your_app_id
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
