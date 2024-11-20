@@ -25,13 +25,13 @@ In today's digital age, we're overwhelmed with information but often lack the to
 
 ### Intelligent Dictionary
 
-- Instant word lookup with multi-source support
-- Toggle between Free Dictionary and Wiktionary
-- Context-aware definitions and examples
-- Support for proper nouns and specialized terms
+- Comprehensive dictionary with multiple sources:
+  - **Free Dictionary API**: General definitions
+  - **Wiktionary API**: Extended meanings
+- Smart word detection and lookup
+- Support for technical terms and proper nouns
 - Draggable dictionary overlay
 - Text-to-speech pronunciation
-- Part of speech labeling
 
 ### Article Management
 
@@ -45,11 +45,16 @@ In today's digital age, we're overwhelmed with information but often lack the to
 ### Active Reading Tools
 
 - Multi-color text highlighting
-- Context-aware margin notes
+- Rich margin notes with:
+  - Image attachments
+  - Hyperlinks
+  - Custom categories
 - Smart bookmarking system
 - Progress persistence
 - Reading statistics with sentiment analysis
 - Focus mode with customizable layout
+- Note organization by categories
+- Quick navigation between notes
 
 ### Smart Notes
 
@@ -62,12 +67,19 @@ In today's digital age, we're overwhelmed with information but often lack the to
 
 ### Knowledge Graph
 
-- Interactive knowledge visualization
-- AI-powered link suggestions
-- Dynamic knowledge mapping
-- Centrality analysis
-- Graph search and filtering
-- Knowledge metrics
+- Interactive 3D knowledge visualization
+- Multiple graph views:
+  - **Similarity Graph**: Connect articles based on content similarity
+  - **Tags Graph**: Explore articles through shared tags and categories
+  - **Timeline Graph**: Visualize articles chronologically
+- Enhanced hover cards with article metadata
+- Dynamic article search with comma-separated queries
+- Interactive node highlighting
+- Customizable graph layout
+- Real-time graph filtering
+- Smooth animations and transitions
+- Zoom and pan controls
+- Node clustering and grouping
 
 ### User Experience
 
@@ -84,7 +96,7 @@ In today's digital age, we're overwhelmed with information but often lack the to
 - Firebase - Backend and database
 - Tailwind CSS - Styling
 - React Markdown - Note editing
-- Vite - Build tool
+- React App Rewired - Build tool
 - Framer Motion - Animations
 - Free Dictionary API - Primary dictionary source
 - Wiktionary API - Secondary dictionary source
@@ -121,12 +133,13 @@ npm run dev
 Create a `.env` file with:
 
 ```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+REACT_APP_HUGGING_FACE_API_KEY=your_hugging_face_api_key
 ```
 
 ## Contributing
