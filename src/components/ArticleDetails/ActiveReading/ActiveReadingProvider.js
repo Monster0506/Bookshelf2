@@ -220,14 +220,27 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
     }
   }, [currentUser]);
 
-  const addNote = useCallback(async (text, highlightId = null, color = null) => {
-    if (!articleId || !currentUser) return null;
+  const addNote = useCallback(async (text, highlightId = null, category = 'GENERAL', image = null, links = []) => {
+    if (!articleId || !currentUser) {
+      logger.warn('Cannot add note: missing articleId or user', { articleId, userId: currentUser?.uid });
+      return null;
+    }
+
+    logger.info('Adding new note', { 
+      text: text.substring(0, 50) + '...',
+      highlightId,
+      category,
+      hasImage: !!image,
+      linksCount: links.length
+    });
 
     try {
       const noteData = {
         text,
         highlightId,
-        color: color || activeHighlightColor,
+        category,
+        image,
+        links,
         articleId,
         userId: currentUser.uid,
         timestamp: new Date()
@@ -237,29 +250,60 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
       const newNote = { id: docRef.id, ...noteData };
       
       setNotes(prev => [...prev, newNote]);
+      logger.success('Note added successfully', { 
+        noteId: docRef.id,
+        category,
+        highlightId
+      });
       return docRef.id;
     } catch (error) {
-      console.error('Error adding note:', error);
+      logger.error('Failed to add note', {
+        error,
+        text: text.substring(0, 50) + '...',
+        category,
+        highlightId
+      });
       setError(error);
       return null;
     }
-  }, [articleId, currentUser, activeHighlightColor]);
+  }, [articleId, currentUser]);
 
-  const editNote = useCallback(async (noteId, newText) => {
-    if (!currentUser) return;
+  const editNote = useCallback(async (noteId, noteData) => {
+    if (!currentUser) {
+      logger.warn('Cannot edit note: no user authenticated');
+      return;
+    }
+
+    logger.info('Editing note', { 
+      noteId,
+      updates: {
+        hasText: !!noteData.text,
+        category: noteData.category,
+        hasImage: !!noteData.image,
+        linksCount: noteData.links?.length
+      }
+    });
 
     try {
       const noteRef = doc(db, 'notes', noteId);
-      await updateDoc(noteRef, { 
-        text: newText,
+      const updates = {
+        ...noteData,
         lastModified: new Date()
-      });
+      };
+      
+      await updateDoc(noteRef, updates);
 
       setNotes(prev => prev.map(note => 
-        note.id === noteId ? { ...note, text: newText } : note
+        note.id === noteId ? { ...note, ...updates } : note
       ));
+      
+      logger.success('Note edited successfully', { noteId });
     } catch (error) {
-      console.error('Error editing note:', error);
+      logger.error('Failed to edit note', {
+        error,
+        noteId,
+        errorMessage: error.message
+      });
       setError(error);
     }
   }, [currentUser]);
