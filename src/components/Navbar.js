@@ -1,13 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { FaPlus, FaBook, FaTrash, FaProjectDiagram, FaFolder } from "react-icons/fa";
+import { FaPlus, FaBook, FaTrash, FaProjectDiagram, FaFolder, FaUserShield } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 function Navbar() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Admin UIDs - keep in sync with AdminPage
+  const ADMIN_UIDS = [process.env.REACT_APP_ADMIN_UID];
+  const isAdmin = ADMIN_UIDS.includes(currentUser?.uid);
 
   const handleLogout = async () => {
     try {
@@ -65,6 +69,11 @@ function Navbar() {
             <Link to="/graph" className="mr-4 flex items-center">
               <FaProjectDiagram className="mr-2" />
             </Link>
+            {isAdmin && (
+              <Link to="/admin" className="mr-4 flex items-center text-yellow-400 hover:text-yellow-300">
+                <FaUserShield className="mr-2" />
+              </Link>
+            )}
 
             {/* Profile Dropdown */}
             <div className="relative">

@@ -13,10 +13,11 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import TrashView from "./pages/TrashView";
 import Navbar from "./components/Navbar";
 import AddArticle from "./pages/AddArticle";
-import ArticleList from "./pages/ArticleList"; // Import the ArticleList component
+import ArticleList from "./pages/ArticleList"; 
 import ArticleGraph from "./pages/ArticleGraph";
 import FolderList from "./components/FolderList";
 import FolderView from "./pages/FolderView";
+import AdminPage from "./pages/AdminPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ActiveReadingProvider } from "./components/ArticleDetails/ActiveReading/ActiveReadingProvider";
 import "./styles/highlights.css";
@@ -79,6 +80,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ArticleGraph />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminPage />
                   </ProtectedRoute>
                 }
               />
