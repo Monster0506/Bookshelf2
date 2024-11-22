@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { findBacklinks } from '../../../utils/firestoreUtils';
+import Loading from '../../Loading';
 
 const ArticleLinks = ({ currentArticle, outgoingLinks }) => {
   const [backlinks, setBacklinks] = useState([]);
@@ -22,7 +23,7 @@ const ArticleLinks = ({ currentArticle, outgoingLinks }) => {
   }, [currentArticle.id]);
 
   if (loading) {
-    return <div className="mt-4 text-gray-600">Loading links...</div>;
+    return <Loading loading="Loading links..." />;
   }
 
   return (

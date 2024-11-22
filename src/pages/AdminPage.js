@@ -4,6 +4,7 @@ import { collection, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firesto
 import { db } from '../firebaseConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { FaTrash, FaEdit, FaSave, FaTimes } from 'react-icons/fa';
+import Loading from "../components/Loading";
 
 const AdminPage = () => {
   const [articles, setArticles] = useState([]);
@@ -201,9 +202,7 @@ const AdminPage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
+        <Loading />
     );
   }
 

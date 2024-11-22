@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 import Modal from "react-modal";
+import Loading from "../components/Loading";
 
 function TrashView() {
   const { currentUser } = useAuth();
@@ -209,6 +210,9 @@ function TrashView() {
       return b.date - a.date;
     });
 
+  if (loading){
+    return <Loading />
+  }
   return (
     <motion.div
       className="p-6 space-y-6"

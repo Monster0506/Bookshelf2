@@ -15,6 +15,7 @@ import {
     fetchDictionaryData,
     DICTIONARY_SOURCES
 } from '../../utils/dictionaryUtils';
+import Loading from '../Loading';
 
 const sourceIcons = {
     [DICTIONARY_SOURCES.FREE_DICTIONARY]: { icon: faGlobe, label: 'Free Dictionary' },
@@ -145,9 +146,7 @@ const DictionaryOverlay = ({ word: initialWord, context, position, onClose }) =>
             {/* Content */}
             <div className="space-y-6">
                 {loading ? (
-                    <div className="flex justify-center py-8">
-                        <FontAwesomeIcon icon={faSpinner} spin className="text-3xl text-blue-500" />
-                    </div>
+                    <Loading boring loading="Loading..." />
                 ) : error ? (
                     <div className="text-red-500 text-center py-6">{error}</div>
                 ) : (

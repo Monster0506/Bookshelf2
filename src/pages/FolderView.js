@@ -11,6 +11,7 @@ import {
 } from "../utils/firestoreUtils";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaLock, FaLockOpen, FaTrash, FaEye, FaEyeSlash, FaTimes, FaBook, FaFolder, FaFolderOpen, FaPlus, FaShare, FaCopy, FaCheck } from "react-icons/fa";
+import Loading from "../components/Loading";
 import "../css/FolderView.css";
 
 function FolderView() {
@@ -169,8 +170,8 @@ function FolderView() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loading boring />
       </div>
     );
   }
