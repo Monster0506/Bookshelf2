@@ -269,7 +269,7 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
     if (!isFocusMode) return;
     
     // Store both the element and its index for proper focusing
-    const paragraphs = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+    const paragraphs = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li'));
     const index = paragraphs.indexOf(paragraphElement);
     
     setFocusedParagraph({

@@ -9,9 +9,20 @@ function BackButton() {
     <button
       type="button"
       onClick={() => navigate(-1)}
-      className="flex items-center mb-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+      className="
+        group
+        inline-flex items-center
+        px-3 py-1.5
+        text-sm
+        text-gray-600 hover:text-gray-800
+        bg-transparent hover:bg-gray-50
+        rounded-md
+        transition-all duration-150 ease-in-out
+        focus:outline-none focus:ring-2 focus:ring-gray-200
+      "
     >
-      <FaArrowLeft className="mr-2" /> Back
+      <FaArrowLeft className="mr-1.5 text-gray-400 group-hover:text-gray-600 transition-colors duration-150" size={14} />
+      <span>Back</span>
     </button>
   );
 }

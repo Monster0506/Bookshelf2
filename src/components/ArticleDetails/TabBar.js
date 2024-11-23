@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Tooltip } from '@mui/material';
+import Tooltip from '../common/Tooltip';
 import {
   faBook,
   faChartBar,
@@ -11,22 +11,21 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 const TabBar = ({ tabs, activeTab, setActiveTab }) => {
-  // Map icons to tab IDs
-  const tabIcons = {
-    content: faBook,
-    summary: faInfoCircle,
-    notes: faStickyNote,
-    related: faLink,
-    stats: faChartBar,
-  };
-
-  // Tooltip descriptions for each tab
-  const tabDescriptions = {
-    content: "View the full article content",
-    summary: "AI-powered insights and key takeaways",
-    notes: "Your personal notes and annotations",
-    related: "Related articles and references",
-    stats: "Article statistics and metrics"
+  const getIcon = (id) => {
+    switch (id) {
+      case 'content':
+        return faBook;
+      case 'summary':
+        return faInfoCircle;
+      case 'notes':
+        return faStickyNote;
+      case 'related':
+        return faLink;
+      case 'stats':
+        return faChartBar;
+      default:
+        return faBook;
+    }
   };
 
   return (
@@ -42,9 +41,8 @@ const TabBar = ({ tabs, activeTab, setActiveTab }) => {
           return (
             <Tooltip 
               key={tab.id}
-              title={tabDescriptions[tab.id]}
+              title={tab.label}
               placement="top"
-              arrow
             >
               <motion.button
                 onClick={() => setActiveTab(tab.id)}
@@ -60,7 +58,7 @@ const TabBar = ({ tabs, activeTab, setActiveTab }) => {
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
                 <FontAwesomeIcon 
-                  icon={tabIcons[tab.id]} 
+                  icon={getIcon(tab.id)} 
                   className={`text-sm ${isActive ? 'text-blue-600' : 'text-gray-400'}`}
                 />
                 <span className="font-medium text-sm">{tab.label}</span>

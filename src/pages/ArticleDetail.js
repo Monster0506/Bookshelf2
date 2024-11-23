@@ -244,105 +244,108 @@ function ArticleDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header
-        showSidebar={showSidebar}
-        setShowSidebar={setShowSidebar}
-        articleId={id}
-      />
-      <div className="container mx-auto px-4 py-6 relative">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-grow">
-            <div className="bg-white rounded-lg shadow-sm">
-              <TabBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
-              <div className="p-4">
-                {activeTab === "content" && (
-                  <ActiveReadingProvider articleId={id}>
-                    <ContentSection
-                      article={article}
-                      title={title}
-                      setTitle={setTitle}
-                      notes={notes}
-                      setNotes={setNotes}
-                      editing={editing}
-                      setEditing={setEditing}
-                      status={status}
-                      setStatus={setStatus}
-                      tags={tags}
-                      setTags={setTags}
-                      createdAt={createdAt}
-                      showSummary={showSummary}
-                      setShowSummary={setShowSummary}
-                      relatedArticles={relatedArticles}
-                      canEdit={canEdit}
-                      isPublic={isPublic}
-                      setIsPublic={setIsPublic}
-                      tagSuggestions={tagSuggestions}
-                      setTagSuggestions={setTagSuggestions}
-                      saving={saving}
-                    />
-                  </ActiveReadingProvider>
-                )}
-                {activeTab === "summary" && (
-                  <SummaryTab
-                    article={article}
-                    status={status}
-                    tags={tags}
-                    createdAt={createdAt}
-                  />
-                )}
-                {activeTab === "notes" && (
+      <ActiveReadingProvider articleId={id}>
+        <div className="flex flex-col min-h-screen">
+          <Header
+            showSidebar={showSidebar}
+            setShowSidebar={setShowSidebar}
+            articleId={id}
+            title={title}
+          />
+          <div className="container mx-auto px-4 py-6 relative">
+            <div className="flex flex-col lg:flex-row gap-6">
+              <div className="flex-grow">
+                <div className="bg-white rounded-lg shadow-sm">
+                  <TabBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
                   <div className="p-4">
-                    <NotesEditor
-                      notes={notes}
-                      setNotes={setNotes}
-                      saveNotes={saveNotes}
-                      canEdit={canEdit}
-                      saving={saving}
-                      articleId={article.id}
-                      articleTitle={article.title}
-                    />
+                    {activeTab === "content" && (
+                      <ContentSection
+                        article={article}
+                        title={title}
+                        setTitle={setTitle}
+                        notes={notes}
+                        setNotes={setNotes}
+                        editing={editing}
+                        setEditing={setEditing}
+                        status={status}
+                        setStatus={setStatus}
+                        tags={tags}
+                        setTags={setTags}
+                        createdAt={createdAt}
+                        showSummary={showSummary}
+                        setShowSummary={setShowSummary}
+                        relatedArticles={relatedArticles}
+                        canEdit={canEdit}
+                        isPublic={isPublic}
+                        setIsPublic={setIsPublic}
+                        tagSuggestions={tagSuggestions}
+                        setTagSuggestions={setTagSuggestions}
+                        saving={saving}
+                      />
+                    )}
+                    {activeTab === "summary" && (
+                      <SummaryTab
+                        article={article}
+                        status={status}
+                        tags={tags}
+                        createdAt={createdAt}
+                      />
+                    )}
+                    {activeTab === "notes" && (
+                      <div className="p-4">
+                        <NotesEditor
+                          notes={notes}
+                          setNotes={setNotes}
+                          saveNotes={saveNotes}
+                          canEdit={canEdit}
+                          saving={saving}
+                          articleId={article.id}
+                          articleTitle={article.title}
+                        />
+                      </div>
+                    )}
+                    {activeTab === "related" && (
+                      <div className="flex-grow">
+                        <RelatedArticles relatedArticles={relatedArticles} />
+                      </div>
+                    )}
+                    {activeTab === "stats" && (
+                      <div className="flex-grow">
+                        <ArticleStats article={article} />
+                      </div>
+                    )}
                   </div>
-                )}
-                {activeTab === "related" && (
-                  <div className="flex-grow">
-                    <RelatedArticles relatedArticles={relatedArticles} />
-                  </div>
-                )}
-                {activeTab === "stats" && (
-                  <div className="flex-grow">
-                    <ArticleStats article={article} />
-                  </div>
-                )}
+                </div>
               </div>
+              {showSidebar && (
+                <div className="w-96 sticky top-16">
+                  <Sidebar
+                    article={article}
+                    tags={tags}
+                    setTags={setTags}
+                    status={status}
+                    setStatus={setStatus}
+                    isPublic={isPublic}
+                    setIsPublic={setIsPublic}
+                    editing={editing}
+                    setEditing={setEditing}
+                    canEdit={canEdit}
+                    folderId={folderId}
+                    setFolderId={setFolderId}
+                    folderName={folderName}
+                    setFolderName={setFolderName}
+                    tagSuggestions={tagSuggestions}
+                    autoTagSuggestions={autoTagSuggestions}
+                    saveMetadata={saveMetadata}
+                    showSidebar={showSidebar}
+                    saving={saving}
+                  />
+                </div>
+              )}
             </div>
           </div>
-          {showSidebar && (
-            <div className="w-96 sticky top-16">
-              <Sidebar
-                article={article}
-                tags={tags}
-                setTags={setTags}
-                status={status}
-                setStatus={setStatus}
-                isPublic={isPublic}
-                setIsPublic={setIsPublic}
-                editing={editing}
-                setEditing={setEditing}
-                canEdit={canEdit}
-                folderId={folderId}
-                setFolderId={setFolderId}
-                folderName={folderName}
-                setFolderName={setFolderName}
-                tagSuggestions={tagSuggestions}
-                autoTagSuggestions={autoTagSuggestions}
-                saveMetadata={saveMetadata}
-                showSidebar={showSidebar}
-                saving={saving}
-              />
-            </div>
-          )}
         </div>
-      </div>
+      </ActiveReadingProvider>
       <ScrollButton />
     </div>
   );

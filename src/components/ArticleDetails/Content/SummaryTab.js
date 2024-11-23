@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { extractInsightsWithAI, generateAISummary, generateConceptQuestions } from '../../../utils/aiUtils';
 import { extractKeyTakeaways } from '../../../utils/keyTakeaways';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Tooltip } from '@mui/material';
+import Tooltip from '../../common/Tooltip';
 import { 
   faSync, faRobot, faBook, faChevronDown, faChevronUp, 
   faFileAlt, faLightbulb, faMagic, faBrain, faQuestion, faPuzzlePiece 
