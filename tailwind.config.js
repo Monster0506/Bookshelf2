@@ -1,7 +1,19 @@
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        highlight: {
+          yellow: '#FEF3C7',
+          green: '#D1FAE5',
+          blue: '#DBEAFE',
+          pink: '#FCE7F3',
+          purple: '#EDE9FE',
+        }
+      }
+    },
   },
-  plugins: [],
+  plugins: [
+    require('tailwindcss-highlights'),
+  ],
 };

@@ -23,9 +23,11 @@ const HighlightManager = ({
   const { isFocusMode, toggleFocusMode } = useActiveReading();
 
   const handleColorSelect = useCallback((color) => {
+    console.log('Color selected:', color);
     setActiveHighlightColor(color);
     setShowColorPicker(false);
     setIsHighlighting(true);
+    console.log('Highlighting enabled');
   }, [setActiveHighlightColor, setIsHighlighting]);
 
   const handleDictionaryClick = useCallback(() => {
@@ -51,7 +53,13 @@ const HighlightManager = ({
     >
       <div className="flex items-center space-x-2">
         <button
-          onClick={() => setShowColorPicker(!showColorPicker)}
+          onClick={() => {
+            console.log('Highlight button clicked, current state:', {
+              isHighlighting,
+              showColorPicker
+            });
+            setShowColorPicker(!showColorPicker);
+          }}
           className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
             isHighlighting ? `${HIGHLIGHT_COLORS[activeHighlightColor].bg} ${HIGHLIGHT_COLORS[activeHighlightColor].text}` : ''
           }`}

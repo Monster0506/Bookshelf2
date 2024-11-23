@@ -98,11 +98,11 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
   }, [articleId, currentUser]);
 
   const addHighlight = useCallback(async (text, range, color = activeHighlightColor) => {
+    console.log('Adding highlight:', { text, range, color });
     if (!articleId || !currentUser) {
+      console.log('Cannot add highlight: missing articleId or currentUser');
       return null;
     }
-
-
 
     try {
       const highlightData = {
@@ -114,14 +114,16 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
         timestamp: new Date()
       };
 
+      console.log('Creating highlight with data:', highlightData);
       const docRef = await addDoc(collection(db, 'highlights'), highlightData);
       const newHighlight = { id: docRef.id, ...highlightData };
       
+      console.log('Highlight created:', newHighlight);
       setHighlights(prev => [...prev, newHighlight]);
 
       return docRef.id;
     } catch (error) {
-
+      console.error('Error creating highlight:', error);
       setError(error);
       return null;
     }
@@ -207,6 +209,38 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
     }
   }, [currentUser]);
 
+  const updateHighlightColor = useCallback(async (highlightId, color) => {
+    if (!highlightId || !color) return;
+
+    try {
+      const highlightRef = doc(db, 'highlights', highlightId);
+      await updateDoc(highlightRef, { color });
+      
+      setHighlights(prev => prev.map(h => 
+        h.id === highlightId ? { ...h, color } : h
+      ));
+    } catch (error) {
+      console.error('Error updating highlight color:', error);
+      setError(error);
+    }
+  }, []);
+
+  const updateHighlightStyle = useCallback(async (highlightId, style) => {
+    if (!highlightId || !style) return;
+
+    try {
+      const highlightRef = doc(db, 'highlights', highlightId);
+      await updateDoc(highlightRef, { annotationType: style });
+      
+      setHighlights(prev => prev.map(h => 
+        h.id === highlightId ? { ...h, annotationType: style } : h
+      ));
+    } catch (error) {
+      console.error('Error updating highlight style:', error);
+      setError(error);
+    }
+  }, []);
+
   const handleLookupWord = useCallback((word, position) => {
     setSelectedWord(word);
     setWordPosition(position);
@@ -248,6 +282,80 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
     setFocusedParagraph(null);
   }, []);
 
+  const handleTextSelection = useCallback(async (contentRef) => {
+    console.log('handleTextSelection called, isHighlighting:', isHighlighting);
+    if (!isHighlighting) return;
+
+    const selection = window.getSelection();
+    console.log('Selection:', selection.toString().trim());
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const text = selection.toString().trim();
+
+    console.log('Selection range:', {
+      startContainer: range.startContainer,
+      endContainer: range.endContainer,
+      text
+    });
+
+    if (!text || !contentRef.current?.contains(range.commonAncestorContainer)) {
+      console.log('Invalid selection:', {
+        hasText: !!text,
+        isInContent: contentRef.current?.contains(range.commonAncestorContainer)
+      });
+      return;
+    }
+
+    try {
+      // Calculate the absolute position within the content
+      let currentPos = 0;
+      const walker = document.createTreeWalker(
+        contentRef.current,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+
+      let startNode = null;
+      let startOffset = 0;
+      let endOffset = 0;
+
+      // Find the start and end positions
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const nodeLength = node.textContent.length;
+
+        if (node === range.startContainer) {
+          startNode = node;
+          startOffset = currentPos + range.startOffset;
+          console.log('Found start node:', { offset: startOffset, text: node.textContent });
+        }
+        if (node === range.endContainer) {
+          endOffset = currentPos + range.endOffset;
+          console.log('Found end node:', { offset: endOffset, text: node.textContent });
+          break;
+        }
+        currentPos += nodeLength;
+      }
+
+      if (startNode && endOffset > startOffset) {
+        console.log('Adding highlight:', {
+          text,
+          range: { start: startOffset, end: endOffset }
+        });
+        await addHighlight(text, {
+          start: startOffset,
+          end: endOffset
+        });
+      } else {
+        console.log('Invalid range:', { startOffset, endOffset });
+      }
+    } catch (error) {
+      console.error('Error adding highlight:', error);
+    }
+  }, [isHighlighting, addHighlight]);
+
   const value = {
     highlights,
     notes,
@@ -269,7 +377,10 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
     onLookupWord: handleLookupWord,
     toggleFocusMode,
     focusOnParagraph,
-    clearFocus
+    clearFocus,
+    handleTextSelection,
+    updateHighlightColor,
+    updateHighlightStyle
   };
 
   return (

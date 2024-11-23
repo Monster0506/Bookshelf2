@@ -14,6 +14,7 @@ import HighlightPopup from "./ActiveReading/HighlightPopup";
 import { useActiveReading } from "./ActiveReading/ActiveReadingProvider";
 import { processArticleContent } from "../../utils/contentUtils";
 import ArticleContent from "./Content/ArticleContent";
+import { annotate } from 'rough-notation';
 
 function ContentSection({
   article,
@@ -59,153 +60,172 @@ function ContentSection({
   const [selectedHighlight, setSelectedHighlight] = useState(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
 
-  const handleTextSelection = useCallback(async () => {
-    if (!isHighlighting) return;
-
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const text = selection.toString().trim();
-
-    if (!text || !contentRef.current?.contains(range.commonAncestorContainer)) return;
-
-    try {
-      // Calculate the absolute position within the content
-      let currentPos = 0;
-      const walker = document.createTreeWalker(
-        contentRef.current,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-      );
-
-      let startNode = null;
-      let startOffset = 0;
-      let endOffset = 0;
-
-      // Find the start and end positions
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const nodeLength = node.textContent.length;
-
-        if (node === range.startContainer) {
-          startNode = node;
-          startOffset = currentPos + range.startOffset;
-        }
-        if (node === range.endContainer) {
-          endOffset = currentPos + range.endOffset;
-          break;
-        }
-        currentPos += nodeLength;
-      }
-
-      if (startNode && startOffset < endOffset) {
-        // Store the range values before clearing the selection
-        const highlightRange = { start: startOffset, end: endOffset };
-        
-        // Clear the selection before creating the highlight
-        selection.removeAllRanges();
-
-        const highlightId = await addHighlight(text, highlightRange);
-        if (highlightId) {
-          // Re-render highlights instead of direct DOM manipulation
-          renderHighlights();
-        }
-      }
-    } catch (error) {
-      selection.removeAllRanges();
-    }
-  }, [isHighlighting, addHighlight]);
-
   const renderHighlights = useCallback(() => {
     if (!contentRef.current || !highlights.length) return;
 
-    // First, remove all existing highlights
+    // Get all existing highlights
     const existingHighlights = contentRef.current.querySelectorAll('[data-highlight-id]');
+    const existingIds = new Set(Array.from(existingHighlights).map(el => el.dataset.highlightId));
+    
+    // Find highlights that need to be removed or updated
     existingHighlights.forEach(highlight => {
-      const parent = highlight.parentNode;
-      while (highlight.firstChild) {
-        parent.insertBefore(highlight.firstChild, highlight);
-      }
-      parent.removeChild(highlight);
-    });
+      const id = highlight.dataset.highlightId;
+      const currentHighlight = highlights.find(h => h.id === id);
+      
+      if (!currentHighlight) {
+        // Remove highlight if it no longer exists
+        const annotation = highlight._roughAnnotation;
+        if (annotation) {
+          annotation.remove();
+        }
+        const parent = highlight.parentNode;
+        while (highlight.firstChild) {
+          parent.insertBefore(highlight.firstChild, highlight);
+        }
+        parent.removeChild(highlight);
+      } else if (
+        highlight.dataset.color !== currentHighlight.color ||
+        highlight.dataset.annotationType !== currentHighlight.annotationType
+      ) {
+        // Update if color or style changed
+        const annotation = highlight._roughAnnotation;
+        if (annotation) {
+          annotation.remove();
+        }
+        
+        const colorMap = {
+          yellow: '#ffd54f',
+          green: '#81c784',
+          blue: '#64b5f6',
+          pink: '#f06292',
+          purple: '#ba68c8'
+        };
 
-    // Get the text content
-    const content = contentRef.current;
+        const newAnnotation = annotate(highlight, { 
+          type: currentHighlight.annotationType || 'highlight',
+          color: colorMap[currentHighlight.color || 'yellow'],
+          iterations: 1,
+          multiline: true,
+          padding: currentHighlight.annotationType === 'box' ? 5 : 2,
+          animationDuration: 200,
+          strokeWidth: 2
+        });
+
+        highlight.dataset.color = currentHighlight.color;
+        highlight.dataset.annotationType = currentHighlight.annotationType;
+        highlight._roughAnnotation = newAnnotation;
+        newAnnotation.show();
+      }
+    });
 
     // Sort highlights by start position (descending) to avoid position shifts
     const sortedHighlights = [...highlights].sort((a, b) => b.range.start - a.range.start);
 
-    // Keep track of current text position
-    let currentPos = 0;
+    // Process each highlight that doesn't already exist
+    sortedHighlights.forEach(highlight => {
+      // Skip if highlight already exists
+      if (existingIds.has(highlight.id)) return;
+
+      try {
+        const range = document.createRange();
+        const startNode = findNodeAtPosition(contentRef.current, highlight.range.start);
+        const endNode = findNodeAtPosition(contentRef.current, highlight.range.end);
+        
+        if (!startNode || !endNode) {
+          console.error('Could not find start or end node for highlight');
+          return;
+        }
+
+        range.setStart(startNode.node, startNode.offset);
+        range.setEnd(endNode.node, endNode.offset);
+
+        // Create highlight span
+        const highlightSpan = document.createElement('span');
+        highlightSpan.dataset.highlightId = highlight.id;
+        highlightSpan.dataset.color = highlight.color || 'yellow';
+        highlightSpan.dataset.annotationType = highlight.annotationType || 'highlight';
+
+        try {
+          // Try to surround contents if possible
+          range.surroundContents(highlightSpan);
+        } catch (e) {
+          // If surroundContents fails, manually wrap the content
+          const contents = range.extractContents();
+          highlightSpan.appendChild(contents);
+          range.insertNode(highlightSpan);
+        }
+
+        // Create rough notation
+        const colorMap = {
+          yellow: '#ffd54f',
+          green: '#81c784',
+          blue: '#64b5f6',
+          pink: '#f06292',
+          purple: '#ba68c8'
+        };
+
+        const annotation = annotate(highlightSpan, { 
+          type: highlight.annotationType || 'highlight',
+          color: colorMap[highlight.color || 'yellow'],
+          iterations: 1,
+          multiline: true,
+          padding: highlight.annotationType === 'box' ? 5 : 2,
+          animationDuration: 200,
+          strokeWidth: 2
+        });
+
+        // Store annotation reference for cleanup
+        highlightSpan._roughAnnotation = annotation;
+        
+        // Show the annotation immediately
+        requestAnimationFrame(() => {
+          annotation.show();
+        });
+      } catch (error) {
+        console.error('Error rendering highlight:', error);
+      }
+    });
+  }, [highlights]);
+
+  // Helper function to find text node and offset at a given position
+  const findNodeAtPosition = (root, targetPosition) => {
+    let currentPosition = 0;
     const walker = document.createTreeWalker(
-      content,
+      root,
       NodeFilter.SHOW_TEXT,
       null,
       false
     );
 
-    // Build a map of text positions to nodes
-    const textNodes = [];
     let node;
-    while (node = walker.nextNode()) {
-      const length = node.textContent.length;
-      textNodes.push({
-        node,
-        start: currentPos,
-        end: currentPos + length
-      });
-      currentPos += length;
-    }
-
-    // Process each highlight
-    sortedHighlights.forEach(highlight => {
-      try {
-        // Find the text node(s) containing this highlight
-        const relevantNodes = textNodes.filter(({ start, end }) => 
-          (start <= highlight.range.start && highlight.range.start < end) ||
-          (start < highlight.range.end && highlight.range.end <= end)
-        );
-
-        if (relevantNodes.length > 0) {
-          const firstNode = relevantNodes[0];
-          const lastNode = relevantNodes[relevantNodes.length - 1];
-
-          // Create highlight span
-          const span = document.createElement('span');
-          span.className = `highlight-${highlight.color}`;
-          span.dataset.highlightId = highlight.id;
-
-          // Create a range for the highlight
-          const range = document.createRange();
-          const startOffset = Math.max(0, highlight.range.start - firstNode.start);
-          const endOffset = Math.min(lastNode.node.length, highlight.range.end - lastNode.start);
-          
-          range.setStart(firstNode.node, startOffset);
-          range.setEnd(lastNode.node, endOffset);
-
-          // Wrap the text in highlight span
-          range.surroundContents(span);
-        }
-      } catch (error) {
+    while ((node = walker.nextNode())) {
+      const nodeLength = node.textContent.length;
+      if (currentPosition <= targetPosition && targetPosition <= currentPosition + nodeLength) {
+        return {
+          node: node,
+          offset: targetPosition - currentPosition
+        };
       }
-    });
-  }, [highlights, currentPage]);
+      currentPosition += nodeLength;
+    }
+    return null;
+  };
 
   const handleHighlightClick = useCallback((event) => {
     const highlightSpan = event.target.closest('[data-highlight-id]');
     if (!highlightSpan) return;
 
     const highlightId = highlightSpan.dataset.highlightId;
+    const highlight = highlights.find(h => h.id === highlightId);
+    if (!highlight) return;
+
     const rect = highlightSpan.getBoundingClientRect();
-    
     setSelectedHighlight(highlightId);
     setPopupPosition({
-      x: rect.left + rect.width / 2,
+      x: rect.left + (rect.width / 2),
       y: rect.top - 10
     });
-  }, []);
+  }, [highlights]);
 
   useEffect(() => {
     const content = contentRef.current;
@@ -216,8 +236,9 @@ function ContentSection({
   }, [handleHighlightClick]);
 
   useEffect(() => {
+    console.log("Rendering highlights with content:", contentRef.current);
     renderHighlights();
-  }, [renderHighlights]);
+  }, [renderHighlights, highlights]);
 
   const handleMetadataChange = debounce((field, value) => {
     const handlers = {
@@ -228,10 +249,6 @@ function ContentSection({
     };
     handlers[field]?.(value);
   }, 300);
-
-  const renderContent = () => {
-    return DOMPurify.sanitize(article.markdown || "No content available.");
-  };
 
   const handleAddNote = useCallback(() => {
     const selection = window.getSelection();
@@ -262,13 +279,9 @@ function ContentSection({
     }
   }, [removeHighlight]);
 
-  useEffect(() => {
-    const content = contentRef.current;
-    if (content) {
-      content.addEventListener('mouseup', handleTextSelection);
-      return () => content.removeEventListener('mouseup', handleTextSelection);
-    }
-  }, [handleTextSelection]);
+  const renderContent = () => {
+    return DOMPurify.sanitize(article.markdown || "No content available.");
+  };
 
   return (
     <motion.div
@@ -278,12 +291,21 @@ function ContentSection({
       transition={{ duration: 0.5 }}
     >
       <Header title={title} editing={editing} setTitle={setTitle} />
-      <ArticleContent content={renderContent()} />
+      <ArticleContent 
+        content={renderContent()} 
+        contentRef={contentRef}
+        onHighlightsRendered={() => {
+          console.log("Content mounted, rendering highlights");
+          renderHighlights();
+        }}
+      />
       
       <AnimatePresence>
         {selectedHighlight && (
           <HighlightPopup
             position={popupPosition}
+            highlightId={selectedHighlight}
+            highlightText={highlights.find(h => h.id === selectedHighlight)?.text}
             onRemove={() => handleRemoveHighlight(selectedHighlight)}
             onClose={() => setSelectedHighlight(null)}
           />

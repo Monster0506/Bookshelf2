@@ -249,3 +249,5 @@ code {
 .tab-hover-effect:hover {
   animation: tabHover 0.3s ease-in-out;
 }
+
+/* Remove old highlight styles since we're using Rough Notation now */
