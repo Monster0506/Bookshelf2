@@ -49,6 +49,24 @@ In today's digital age, we're overwhelmed with information but often lack the to
   - Image attachments
   - Hyperlinks
   - Custom categories
+- **Spotlight Mode** for immersive reading:
+  - Dims surrounding content to reduce distractions
+  - Enlarges and highlights focused paragraphs
+  - Smooth transitions with subtle animations
+  - Keyboard navigation:
+    * ↑/k: Previous paragraph
+    * ↓/j/Space: Next paragraph
+    * b: Toggle bookmark
+    * v/n: Previous/Next bookmark
+    * z: Toggle extra zoom
+    * t: Toggle typewriter mode
+    * [/]: Adjust spotlight intensity
+    * c: Cycle accent colors
+    * Esc: Exit spotlight mode
+  - Interactive image previews on hover
+  - Purple accent bar for visual tracking
+  - Smart bookmarking system
+  - Centered scrolling for optimal focus
 - Smart bookmarking system
 - Progress persistence
 - Reading statistics with sentiment analysis

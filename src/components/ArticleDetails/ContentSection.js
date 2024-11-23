@@ -13,6 +13,7 @@ import MarginNotes from "./ActiveReading/MarginNotes";
 import HighlightPopup from "./ActiveReading/HighlightPopup";
 import { useActiveReading } from "./ActiveReading/ActiveReadingProvider";
 import { processArticleContent } from "../../utils/contentUtils";
+import ArticleContent from "./Content/ArticleContent";
 
 function ContentSection({
   article,
@@ -277,13 +278,7 @@ function ContentSection({
       transition={{ duration: 0.5 }}
     >
       <Header title={title} editing={editing} setTitle={setTitle} />
-      <div
-        ref={contentRef}
-        className="prose max-w-none markdown-content"
-        dangerouslySetInnerHTML={{
-          __html: renderContent(),
-        }}
-      />
+      <ArticleContent content={renderContent()} />
       
       <AnimatePresence>
         {selectedHighlight && (

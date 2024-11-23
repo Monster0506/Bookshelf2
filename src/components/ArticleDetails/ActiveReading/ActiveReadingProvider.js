@@ -15,7 +15,6 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import DictionaryOverlay from '../../Dictionary/DictionaryOverlay';
 
-
 const ActiveReadingContext = createContext();
 
 export const useActiveReading = () => {
@@ -35,6 +34,8 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
   const [selectedWord, setSelectedWord] = useState(null);
   const [wordPosition, setWordPosition] = useState(null);
   const [error, setError] = useState(null);
+  const [focusedParagraph, setFocusedParagraph] = useState(null);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -216,31 +217,72 @@ export const ActiveReadingProvider = ({ children, articleId }) => {
     setWordPosition(null);
   }, []);
 
+  const toggleFocusMode = useCallback(() => {
+    setIsFocusMode(prev => {
+      if (!prev) {
+        // When entering focus mode, don't focus any paragraph yet
+        setFocusedParagraph(null);
+        return true;
+      } else {
+        // When exiting focus mode, clear the focused paragraph
+        setFocusedParagraph(null);
+        return false;
+      }
+    });
+  }, []);
+
+  const focusOnParagraph = useCallback((paragraphElement) => {
+    if (!isFocusMode) return;
+    
+    // Store both the element and its index for proper focusing
+    const paragraphs = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
+    const index = paragraphs.indexOf(paragraphElement);
+    
+    setFocusedParagraph({
+      element: paragraphElement,
+      index: index
+    });
+  }, [isFocusMode]);
+
+  const clearFocus = useCallback(() => {
+    setFocusedParagraph(null);
+  }, []);
+
   const value = {
     highlights,
     notes,
     activeHighlightColor,
-    setActiveHighlightColor,
     isHighlighting,
-    setIsHighlighting,
-    loading: isLoading,
+    selectedWord,
+    wordPosition,
     error,
+    isLoading,
+    isFocusMode,
+    focusedParagraph,
+    setActiveHighlightColor,
+    setIsHighlighting,
     addHighlight,
     removeHighlight,
     addNote,
     editNote,
     deleteNote,
-    onLookupWord: handleLookupWord
+    onLookupWord: handleLookupWord,
+    toggleFocusMode,
+    focusOnParagraph,
+    clearFocus
   };
 
   return (
     <ActiveReadingContext.Provider value={value}>
       {children}
-      {selectedWord && (
+      {selectedWord && wordPosition && (
         <DictionaryOverlay
           word={selectedWord}
           position={wordPosition}
-          onClose={handleCloseDictionary}
+          onClose={() => {
+            setSelectedWord(null);
+            setWordPosition(null);
+          }}
         />
       )}
     </ActiveReadingContext.Provider>

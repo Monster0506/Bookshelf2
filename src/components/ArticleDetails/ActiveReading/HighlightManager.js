@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHighlighter, FaTimes, FaEdit, FaStickyNote, FaBook } from 'react-icons/fa';
+import { FaHighlighter, FaTimes, FaEdit, FaStickyNote, FaBook, FaEye } from 'react-icons/fa';
+import { useActiveReading } from './ActiveReadingProvider';
 
 const HIGHLIGHT_COLORS = {
   yellow: { bg: 'bg-yellow-200', text: 'text-yellow-800', border: 'border-yellow-300' },
@@ -19,6 +20,7 @@ const HighlightManager = ({
   onLookupWord
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const { isFocusMode, toggleFocusMode } = useActiveReading();
 
   const handleColorSelect = useCallback((color) => {
     setActiveHighlightColor(color);
@@ -73,6 +75,34 @@ const HighlightManager = ({
         >
           <FaStickyNote />
         </button>
+
+        <motion.button
+          className={`p-2 rounded-full hover:bg-gray-100 relative group ${isFocusMode ? 'bg-purple-100' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFocusMode();
+            // Force blur to remove focus from the button after clicking
+            document.activeElement.blur();
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <FaEye className={`w-5 h-5 ${isFocusMode ? 'text-purple-600' : 'text-gray-600'}`} />
+          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            Spotlight Mode
+            <div className="text-xs text-gray-300 mt-1">
+              ↑/k: Previous paragraph<br/>
+              ↓/j/Space: Next paragraph<br/>
+              b: Toggle bookmark<br/>
+              v/n: Previous/Next bookmark<br/>
+              z: Toggle zoom<br/>
+              t: Toggle typewriter mode<br/>
+              [/]: Adjust spotlight<br/>
+              c: Change accent color
+            </div>
+          </div>
+        </motion.button>
 
         {isHighlighting && (
           <button
