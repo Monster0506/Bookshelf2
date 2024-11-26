@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useActiveReading } from '../ActiveReading/ActiveReadingProvider';
 import FocusOverlay from '../ActiveReading/FocusOverlay';
+import HeadingDots from './HeadingDots';
 
 const ArticleContent = ({ content, contentRef, onHighlightsRendered }) => {
   const { 
@@ -33,6 +34,8 @@ const ArticleContent = ({ content, contentRef, onHighlightsRendered }) => {
 
   return (
     <div className="relative">
+      <HeadingDots contentRef={contentRef} />
+
       {/* Article Content */}
       <div 
         ref={contentRef}
