@@ -1,6 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHighlighter, FaTimes, FaEdit, FaStickyNote, FaBook, FaEye } from 'react-icons/fa';
+import { 
+  FaHighlighter, FaTimes, FaEdit, FaStickyNote, FaBook, FaEye, 
+  FaVolumeUp, FaVolumeMute, FaPlay, FaPause
+} from 'react-icons/fa';
 import { useActiveReading } from './ActiveReadingProvider';
 import Tooltip from '../../common/Tooltip';
 
@@ -10,6 +13,104 @@ const HIGHLIGHT_COLORS = {
   blue: { bg: 'bg-blue-200', text: 'text-blue-800', border: 'border-blue-300' },
   purple: { bg: 'bg-purple-200', text: 'text-purple-800', border: 'border-purple-300' },
   red: { bg: 'bg-red-200', text: 'text-red-800', border: 'border-red-300' },
+};
+
+const TTSPopup = ({ isOpen, onClose, settings, onSettingsChange, isSpeaking, isPaused, onPlayPause, onStop }) => {
+  const [voices, setVoices] = useState([]);
+  
+  useEffect(() => {
+    const loadVoices = () => {
+      const availableVoices = speechSynthesis.getVoices();
+      setVoices(availableVoices);
+    };
+    
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+    
+    return () => {
+      speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }}
+          className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-4 w-72"
+        >
+          {isSpeaking && (
+            <div className="flex items-center justify-center space-x-2 mb-4 pb-4 border-b border-gray-200">
+              <button
+                onClick={onPlayPause}
+                className="px-4 py-2 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors flex items-center space-x-2"
+              >
+                {isPaused ? <><FaPlay /> <span>Resume</span></> : <><FaPause /> <span>Pause</span></>}
+              </button>
+              <button
+                onClick={onStop}
+                className="px-4 py-2 rounded-md bg-red-50 hover:bg-red-100 text-red-600 transition-colors flex items-center space-x-2"
+              >
+                <FaVolumeMute />
+                <span>Stop</span>
+              </button>
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Voice</label>
+              <select
+                value={settings.voice}
+                onChange={(e) => onSettingsChange({ voice: e.target.value })}
+                className="w-full rounded-md border border-gray-300 py-1.5 px-3 text-sm"
+              >
+                {voices.map((voice) => (
+                  <option key={voice.name} value={voice.name}>
+                    {voice.name} ({voice.lang})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Speed</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={settings.rate}
+                  onChange={(e) => onSettingsChange({ rate: parseFloat(e.target.value) })}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-600 w-12">{settings.rate}x</span>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pitch</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={settings.pitch}
+                  onChange={(e) => onSettingsChange({ pitch: parseFloat(e.target.value) })}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-600 w-12">{settings.pitch}x</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 };
 
 const HighlightManager = ({ 
@@ -22,6 +123,17 @@ const HighlightManager = ({
 }) => {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const { isFocusMode, toggleFocusMode } = useActiveReading();
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [showTTSSettings, setShowTTSSettings] = useState(false);
+  const [ttsSettings, setTTSSettings] = useState({
+    voice: '',
+    rate: 1,
+    pitch: 1
+  });
+  
+  const speechSynthRef = useRef(window.speechSynthesis);
+  const currentUtteranceRef = useRef(null);
 
   const handleColorSelect = useCallback((color) => {
     setActiveHighlightColor(color);
@@ -43,6 +155,70 @@ const HighlightManager = ({
     }
   }, [onLookupWord]);
 
+  const handleTTSSettings = useCallback((newSettings) => {
+    setTTSSettings(prev => ({ ...prev, ...newSettings }));
+    
+    if (currentUtteranceRef.current) {
+      const utterance = currentUtteranceRef.current;
+      if (newSettings.rate !== undefined) utterance.rate = newSettings.rate;
+      if (newSettings.pitch !== undefined) utterance.pitch = newSettings.pitch;
+      if (newSettings.voice !== undefined) {
+        const voice = speechSynthesis.getVoices().find(v => v.name === newSettings.voice);
+        if (voice) utterance.voice = voice;
+      }
+    }
+  }, []);
+
+  const handleTTS = useCallback(() => {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+    
+    if (isSpeaking) {
+      if (isPaused) {
+        speechSynthRef.current.resume();
+        setIsPaused(false);
+      } else {
+        speechSynthRef.current.pause();
+        setIsPaused(true);
+      }
+      return;
+    }
+
+    if (selectedText) {
+      const utterance = new SpeechSynthesisUtterance(selectedText);
+      utterance.rate = ttsSettings.rate;
+      utterance.pitch = ttsSettings.pitch;
+      
+      if (ttsSettings.voice) {
+        const voice = speechSynthesis.getVoices().find(v => v.name === ttsSettings.voice);
+        if (voice) utterance.voice = voice;
+      }
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        currentUtteranceRef.current = null;
+      };
+      
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        currentUtteranceRef.current = null;
+      };
+
+      currentUtteranceRef.current = utterance;
+      setIsSpeaking(true);
+      speechSynthRef.current.speak(utterance);
+    }
+  }, [isSpeaking, isPaused, ttsSettings]);
+
+  const stopTTS = useCallback(() => {
+    speechSynthRef.current.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+    currentUtteranceRef.current = null;
+  }, []);
+
   return (
     <motion.div 
       className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-lg border border-gray-200 p-2 z-50"
@@ -60,6 +236,71 @@ const HighlightManager = ({
         >
           <FaHighlighter />
         </button>
+
+        <div className="relative">
+          <Tooltip
+            title="Text-to-Speech"
+            content={
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 whitespace-nowrap">
+                <div className="flex items-center space-x-1">
+                  <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">Click</kbd>
+                </div>
+                <span>{isSpeaking ? (isPaused ? "Resume speaking" : "Pause speaking") : "Start speaking selected text"}</span>
+
+                <div className="flex items-center space-x-1">
+                  <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">Right-click</kbd>
+                </div>
+                <span>Open TTS settings</span>
+
+                <div className="flex items-center space-x-1">
+                  <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-[10px]">Long press</kbd>
+                </div>
+                <span>Open TTS settings</span>
+              </div>
+            }
+          >
+            <button
+              onClick={handleTTS}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setShowTTSSettings(!showTTSSettings);
+              }}
+              onMouseDown={(e) => {
+                if (e.button === 0) { // Left click
+                  const timer = setTimeout(() => {
+                    setShowTTSSettings(!showTTSSettings);
+                  }, 500);
+                  e.currentTarget.dataset.longPressTimer = timer;
+                }
+              }}
+              onMouseUp={(e) => {
+                if (e.button === 0) {
+                  const timer = e.currentTarget.dataset.longPressTimer;
+                  if (timer) clearTimeout(timer);
+                }
+              }}
+              onMouseLeave={(e) => {
+                const timer = e.currentTarget.dataset.longPressTimer;
+                if (timer) clearTimeout(timer);
+              }}
+              className={`p-2 rounded-full hover:bg-gray-100 transition-colors
+                         ${isSpeaking || showTTSSettings ? 'text-blue-500 bg-blue-50' : ''}`}
+            >
+              {isSpeaking ? (isPaused ? <FaPlay /> : <FaPause />) : <FaVolumeUp />}
+            </button>
+          </Tooltip>
+          
+          <TTSPopup
+            isOpen={showTTSSettings}
+            onClose={() => setShowTTSSettings(false)}
+            settings={ttsSettings}
+            onSettingsChange={handleTTSSettings}
+            isSpeaking={isSpeaking}
+            isPaused={isPaused}
+            onPlayPause={handleTTS}
+            onStop={stopTTS}
+          />
+        </div>
 
         <button
           onClick={handleDictionaryClick}
