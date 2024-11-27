@@ -37,6 +37,7 @@ function ArticleDetail() {
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState("");
+  const [archived, setArchived] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tagSuggestions, setTagSuggestions] = useState([]);
   const [autoTagSuggestions, setAutoTagSuggestions] = useState([]);
@@ -74,7 +75,8 @@ function ArticleDetail() {
           setTags(
             Array.isArray(articleData.tags) ? articleData.tags.join(", ") : "",
           );
-          setStatus(articleData.status || "UNREAD");
+          setStatus(articleData.status || "");
+          setArchived(articleData.archived || false);
           setNotes(articleData.note || "");
           setCreatedAt(articleData.date);
           setIsPublic(articleData.public || false);
@@ -176,6 +178,7 @@ function ArticleDetail() {
         tags: tagArray,
         public: Boolean(isPublic),
         status: status || "",
+        archived: archived,
         lastModified: new Date(),
       };
 
@@ -224,7 +227,7 @@ function ArticleDetail() {
       console.error("Error saving metadata:", error);
       setSaving(false);
     }
-  }, [id, tags, title, isPublic, status, folderId, folderName]);
+  }, [id, tags, title, isPublic, status, folderId, folderName, archived]);
 
   const debouncedSaveNotes = useDebouncedCallback(() => {
     setSaving(true);
@@ -339,6 +342,8 @@ function ArticleDetail() {
                     saveMetadata={saveMetadata}
                     showSidebar={showSidebar}
                     saving={saving}
+                    archived={archived}
+                    setArchived={setArchived}
                   />
                 </div>
               )}

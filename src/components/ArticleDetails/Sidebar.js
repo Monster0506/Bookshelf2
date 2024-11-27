@@ -30,6 +30,8 @@ function Sidebar({
   showSidebar,
   setShowSidebar,
   saving,
+  archived,
+  setArchived,
 }) {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [showAutoTagSuggestions, setShowAutoTagSuggestions] = useState(false);
@@ -59,6 +61,7 @@ function Sidebar({
   }, [folderId]);
 
   const handleMetadataChange = (field, value) => {
+    console.log('Metadata change:', field, value);
     switch (field) {
       case "tags":
         const formattedTags = value.replace(/^,?\s*/, "").trim();
@@ -214,6 +217,11 @@ function Sidebar({
     }
   };
 
+  const handleArchiveChange = (e) => {
+    console.log('Archive checkbox clicked:', e.target.checked);
+    setArchived(e.target.checked);
+  };
+
   return (
     <AnimatePresence>
       {showSidebar && (
@@ -281,19 +289,46 @@ function Sidebar({
             <SourceAttribution url={article.source} />
 
             {/* Status Section */}
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Reading Status</h3>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                disabled={!editing}
-                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-              >
-                <option value="unread">Unread</option>
-                <option value="reading">Reading</option>
-                <option value="completed">Completed</option>
-                <option value="archived">Archived</option>
-              </select>
+            <div className="mb-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Reading Status</h3>
+                <select
+                  value={status}
+                  onChange={(e) => {
+                    console.log('Status dropdown changed:', e.target.value);
+                    setStatus(e.target.value);
+                  }}
+                  disabled={!editing}
+                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="UNREAD">Unread</option>
+                  <option value="READING">Reading</option>
+                  <option value="READ">Read</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center pl-1">
+                <input
+                  type="checkbox"
+                  id="archive-checkbox"
+                  checked={archived}
+                  onChange={handleArchiveChange}
+                  disabled={!editing}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                />
+                <label 
+                  htmlFor="archive-checkbox" 
+                  className="ml-2 text-sm text-gray-700 cursor-pointer select-none"
+                >
+                  Archive this article
+                </label>
+              </div>
+              {/* Debug info */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Status: {status}, Archived: {archived.toString()}
+                </div>
+              )}
             </div>
 
             {/* Tags Section */}

@@ -58,19 +58,19 @@ export const createFolderFromTemplate = async (templateName, userId) => {
   const templates = {
     research: {
       name: "Research",
-      color: "#EF4444", // Red
+      color: "#EF4444", 
       icon: "research",
       subfolders: ["Literature", "Notes", "Data", "Drafts"]
     },
     reading: {
       name: "Reading List",
-      color: "#10B981", // Green
+      color: "#10B981", 
       icon: "book",
-      subfolders: ["To Read", "In Progress", "Completed", "Favorites"]
+      subfolders: ["To Read", "In Progress", "Read", "Favorites"]
     },
     work: {
       name: "Work",
-      color: "#6366F1", // Indigo
+      color: "#6366F1", 
       icon: "briefcase",
       subfolders: ["Projects", "References", "Archive"]
     }
