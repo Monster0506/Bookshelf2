@@ -61,7 +61,6 @@ function Sidebar({
   }, [folderId]);
 
   const handleMetadataChange = (field, value) => {
-    console.log('Metadata change:', field, value);
     switch (field) {
       case "tags":
         const formattedTags = value.replace(/^,?\s*/, "").trim();
@@ -74,53 +73,45 @@ function Sidebar({
         setIsPublic(value);
         break;
       case "folderId":
-        setSelectedFolder(value);
         if (value === "") {
-          // Clear folder
+          setSelectedFolder("");
           setFolderName("");
           setFolderId("");
         } else {
           const selectedFolderData = folders.find((folder) => folder.id === value);
           if (selectedFolderData) {
+            setSelectedFolder(value);
             setFolderName(selectedFolderData.name);
             setFolderId(value);
           }
         }
         break;
       default:
-        console.warn("Unknown metadata field:", field);
+        break;
     }
   };
 
   const handleSaveChanges = () => {
-    // Ensure all state is properly set before saving
     const selectedFolderData = folders.find((folder) => folder.id === selectedFolder);
     
-    // Update folder information
     if (selectedFolder && selectedFolderData) {
       setFolderId(selectedFolder);
       setFolderName(selectedFolderData.name);
     } else {
-      // Clear folder if none selected
       setFolderId("");
       setFolderName("");
+      setSelectedFolder("");
     }
 
-    // Clean up tags
     const cleanedTags = tags
       .split(",")
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0)
       .join(", ");
     setTags(cleanedTags);
-
-    // Ensure boolean for public status
-    setIsPublic(Boolean(isPublic));
     
-    // Ensure status is string
+    setIsPublic(Boolean(isPublic));
     setStatus(status || "");
-
-    // Exit edit mode and save
     setEditing(false);
     saveMetadata();
   };
@@ -218,7 +209,6 @@ function Sidebar({
   };
 
   const handleArchiveChange = (e) => {
-    console.log('Archive checkbox clicked:', e.target.checked);
     setArchived(e.target.checked);
   };
 
@@ -233,9 +223,8 @@ function Sidebar({
           className="sticky top-16 float-right w-80 bg-white shadow-lg overflow-y-auto z-30 rounded-lg border border-gray-200"
           style={{ maxHeight: 'calc(100vh - 4rem)' }}
         >
-          <div className="p-4">
-            {/* Header with Edit Button */}
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Details</h2>
               {canEdit && (
                 <button
@@ -252,228 +241,210 @@ function Sidebar({
               )}
             </div>
 
-            {/* Visibility Toggle */}
-            {editing ? (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-700">Visibility</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {isPublic ? "Anyone can view this article" : "Only you can view this article"}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="sr-only peer"
-                      checked={isPublic}
-                      onChange={(e) => setIsPublic(e.target.checked)}
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-4">
-                <div className="flex items-center text-sm">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md ${
-                    isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                  }`}>
+                  <span className="text-sm text-gray-700">
                     {isPublic ? "Public" : "Private"}
                   </span>
-                </div>
-              </div>
-            )}
-
-            {/* Source Attribution */}
-            <SourceAttribution url={article.source} />
-
-            {/* Status Section */}
-            <div className="mb-4 space-y-3">
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Reading Status</h3>
-                <select
-                  value={status}
-                  onChange={(e) => {
-                    console.log('Status dropdown changed:', e.target.value);
-                    setStatus(e.target.value);
-                  }}
-                  disabled={!editing}
-                  className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="UNREAD">Unread</option>
-                  <option value="READING">Reading</option>
-                  <option value="READ">Read</option>
-                </select>
-              </div>
-              
-              <div className="flex items-center pl-1">
-                <input
-                  type="checkbox"
-                  id="archive-checkbox"
-                  checked={archived}
-                  onChange={handleArchiveChange}
-                  disabled={!editing}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-                />
-                <label 
-                  htmlFor="archive-checkbox" 
-                  className="ml-2 text-sm text-gray-700 cursor-pointer select-none"
-                >
-                  Archive this article
-                </label>
-              </div>
-              {/* Debug info */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Status: {status}, Archived: {archived.toString()}
-                </div>
-              )}
-            </div>
-
-            {/* Tags Section */}
-            {(editing || (tags && tags.trim())) && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Tags</h3>
-                <div className="space-y-2">
-                  {editing ? (
-                    <>
-                      <div className="flex flex-wrap gap-2">
-                        {tags.split(",").filter(tag => tag.trim()).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-2.5 py-1 rounded-md text-sm bg-blue-100 text-blue-700"
-                          >
-                            {tag.trim()}
-                            <button
-                              onClick={() => handleRemoveTag(tag.trim())}
-                              className="ml-1.5 text-blue-600 hover:text-blue-800"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
+                  {editing && (
+                    <label className="relative inline-flex items-center cursor-pointer">
                       <input
-                        type="text"
-                        value={tags}
-                        onChange={(e) => handleMetadataChange("tags", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Add tags, separated by commas"
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={isPublic}
+                        onChange={(e) => setIsPublic(e.target.checked)}
                       />
-                      <div className="flex gap-2 mt-2">
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Status</span>
+                  {editing ? (
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="UNREAD">Unread</option>
+                      <option value="READING">Reading</option>
+                      <option value="READ">Read</option>
+                    </select>
+                  ) : (
+                    <span className="text-sm text-gray-600">
+                      {status === "UNREAD" ? "Unread" : 
+                       status === "READING" ? "Reading" : "Read"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">Archive</span>
+                  {editing ? (
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={archived}
+                        onChange={(e) => setArchived(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  ) : (
+                    <span className={`text-sm ${archived ? "text-amber-600" : "text-gray-600"}`}>
+                      {archived ? "Archived" : "Not Archived"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <SourceAttribution url={article.source} />
+
+              {(editing || (tags && tags.trim())) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-medium text-gray-700">Tags</h3>
+                    {editing && (
+                      <div className="flex gap-2">
                         <button
                           onClick={() => setShowTagSuggestions(!showTagSuggestions)}
-                          className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                          className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                         >
-                          Tag Suggestions
+                          Suggestions
                         </button>
                         <button
                           onClick={() => setShowAutoTagSuggestions(!showAutoTagSuggestions)}
-                          className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                          className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
                         >
-                          Auto Tags
+                          Auto
                         </button>
                       </div>
+                    )}
+                  </div>
 
-                      {/* Tag Suggestions Panel */}
-                      {(showTagSuggestions || showAutoTagSuggestions) && (
-                        <div className="mt-2 p-3 bg-white border rounded-md shadow-sm max-h-48 overflow-y-auto">
-                          {showTagSuggestions && (
-                            <div className="mb-3">
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Suggested Tags</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {tagSuggestions.map((suggestion, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => {
-                                      appendTag(suggestion);
-                                      setShowTagSuggestions(false);
-                                    }}
-                                    className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                                  >
-                                    {suggestion}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {showAutoTagSuggestions && (
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-700 mb-2">Auto-Generated Tags</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {autoTagSuggestions.map((suggestion, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => {
-                                      appendTag(suggestion);
-                                      setShowAutoTagSuggestions(false);
-                                    }}
-                                    className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                                  >
-                                    {suggestion}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                  <div className="space-y-2">
+                    {editing ? (
+                      <>
+                        <input
+                          type="text"
+                          value={tags}
+                          onChange={(e) => handleMetadataChange("tags", e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Add tags, separated by commas"
+                        />
+                        <div className="flex flex-wrap gap-1.5">
+                          {tags.split(",").filter(tag => tag.trim()).map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700"
+                            >
+                              {tag.trim()}
+                              <button
+                                onClick={() => handleRemoveTag(tag.trim())}
+                                className="ml-1 text-blue-600 hover:text-blue-800"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
                         </div>
-                      )}
+                      </>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {tags.split(",").filter(tag => tag.trim()).map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700"
+                          >
+                            {tag.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {editing && (showTagSuggestions || showAutoTagSuggestions) && (
+                      <div className="mt-2 p-2 bg-white border rounded-md shadow-sm max-h-32 overflow-y-auto">
+                        <div className="flex flex-wrap gap-1.5">
+                          {showTagSuggestions && tagSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                appendTag(suggestion);
+                                setShowTagSuggestions(false);
+                              }}
+                              className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                          {showAutoTagSuggestions && autoTagSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                appendTag(suggestion);
+                                setShowAutoTagSuggestions(false);
+                              }}
+                              className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Folder</h3>
+                <div className="space-y-2">
+                  {editing ? (
+                    <>
+                      <div className="max-h-32 overflow-y-auto border rounded-lg bg-white">
+                        <div 
+                          className="p-2 hover:bg-gray-50 cursor-pointer border-b"
+                          onClick={() => handleMetadataChange("folderId", "")}
+                        >
+                          <span className="text-gray-500 text-sm">No Folder</span>
+                        </div>
+                        {folders.map(folder => renderFolderOption(folder))}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          placeholder="New folder name"
+                          className="flex-grow p-2 text-sm border rounded-lg focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={handleAddFolder}
+                          className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                        >
+                          <FaPlus size={14} />
+                        </button>
+                      </div>
                     </>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {tags.split(",").filter(tag => tag.trim()).map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2.5 py-1 rounded-md text-sm bg-blue-100 text-blue-700"
-                        >
-                          {tag.trim()}
-                        </span>
-                      ))}
+                    <div className="p-2 border rounded-lg bg-white">
+                      <span className="text-sm text-gray-600">
+                        {folderName || "No Folder"}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
-            )}
-
-            {/* Folder Section */}
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Folder</h3>
-              <div className="max-h-48 overflow-y-auto border rounded-lg bg-white">
-                <div 
-                  className="p-2.5 hover:bg-gray-50 cursor-pointer border-b"
-                  onClick={() => handleMetadataChange("folderId", "")}
-                >
-                  <span className="text-gray-500">No Folder</span>
-                </div>
-                {folders.map(folder => renderFolderOption(folder))}
-              </div>
-              {editing && (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    placeholder="New folder name"
-                    className="flex-grow p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button
-                    onClick={handleAddFolder}
-                    className="p-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <FaPlus />
-                  </button>
-                </div>
-              )}
             </div>
-
-            {saving && (
-              <div className="fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-md shadow-lg text-sm">
-                Saving...
-              </div>
-            )}
           </div>
+
+          {saving && (
+            <div className="fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-md shadow-lg text-sm">
+              Saving...
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

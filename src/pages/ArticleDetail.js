@@ -180,12 +180,9 @@ function ArticleDetail() {
         status: status || "",
         archived: archived,
         lastModified: new Date(),
+        folderId: folderId || null,
+        folderName: folderName || null
       };
-
-      if (folderId && folderName) {
-        updateData.folderId = folderId;
-        updateData.folderName = folderName;
-      }
 
       await updateDoc(articleRef, updateData);
 
