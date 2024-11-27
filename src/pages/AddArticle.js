@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   addArticle,
   fetchUserFolders,
@@ -18,30 +19,181 @@ import { logArticleAdd, logError, logFeatureUse } from "../utils/analyticsUtils"
 
 function AddArticle() {
   const { currentUser } = useAuth();
-  const [title, setTitle] = useState("");
-  const [filetype, setFiletype] = useState("URL");
-  const [publicStatus, setPublicStatus] = useState(false);
-  const [source, setSource] = useState("");
-  const [status, setStatus] = useState("UNREAD");
-  const [tags, setTags] = useState([""]);
-  const [error, setError] = useState("");
+  const navigate = useNavigate();
+  
+  // Combined form state
+  const [formData, setFormData] = useState({
+    title: "",
+    filetype: "URL",
+    publicStatus: false,
+    source: "",
+    status: "UNREAD",
+    tags: [],
+    file: null,
+    selectedFolder: null
+  });
+
+  // Error states
+  const [errors, setErrors] = useState({
+    title: "",
+    source: "",
+    upload: "",
+    processing: "",
+    submission: ""
+  });
+
+  // Loading states
+  const [loading, setLoading] = useState({
+    foldersFetch: false,
+    contentProcess: false,
+    upload: false,
+    submission: false
+  });
+
+  // UI states
   const [success, setSuccess] = useState("");
-  const [file, setFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [preview, setPreview] = useState({
+    content: "",
+    readingTime: 0,
+    wordCount: 0
+  });
+  const [recentUrls, setRecentUrls] = useState([]);
   const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState(new Set());
-  const dropdownRef = React.createRef(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const dropdownRef = React.createRef();
+
+  // Load recent URLs from localStorage
+  useEffect(() => {
+    const loadRecentUrls = async () => {
+      const urls = localStorage.getItem('recentUrls');
+      if (urls) setRecentUrls(JSON.parse(urls));
+    };
+    loadRecentUrls();
+  }, []);
+
+  // Save URL to recent history
+  const saveToRecent = (url) => {
+    const updated = [url, ...recentUrls.filter(u => u !== url)].slice(0, 5);
+    setRecentUrls(updated);
+    localStorage.setItem('recentUrls', JSON.stringify(updated));
+  };
+
+  // Form change handler
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear related error when field changes
+    setErrors(prev => ({ ...prev, [field]: "" }));
+  };
+
+  // Form validation
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = "Title is required";
+    if (!formData.source.trim() && formData.filetype === "URL") newErrors.source = "URL is required";
+    if (!formData.file && ["HTML", "PDF"].includes(formData.filetype)) newErrors.upload = "File is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      filetype: "URL",
+      publicStatus: false,
+      source: "",
+      status: "UNREAD",
+      tags: [],
+      file: null,
+      selectedFolder: null
+    });
+    setErrors({});
+    setPreview({ content: "", readingTime: 0, wordCount: 0 });
+    setUploadProgress(0);
+    setSuccess("");
+    setIsDropdownOpen(false);
+  };
+
+  // Handle cancel
+  const handleCancel = () => {
+    setShowCancelModal(true);
+  };
+
+  const confirmCancel = () => {
+    setShowCancelModal(false);
+    resetForm();
+    navigate(-1);
+  };
+
+  // Preview content
+  const handlePreview = async () => {
+    try {
+      setLoading(prev => ({ ...prev, contentProcess: true }));
+      
+      if (formData.filetype === "PLAINTEXT") {
+        // Handle plaintext preview directly
+        const lines = formData.source.split('\n');
+        const truncatedLines = lines.slice(0, 5);
+        const content = truncatedLines.join('<br>') + (lines.length > 5 ? '<br>...' : '');
+        const wordCount = formData.source.trim().split(/[\s\n]+/).filter(word => word.length > 0).length;
+        const readingTime = Math.ceil(wordCount / 200);
+        setPreview({ content, readingTime, wordCount });
+      } else {
+        // Handle URL and file content
+        const { content, readingTime, wordCount } = await fetchAndProcessContent(formData.source);
+        // Truncate HTML content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        const text = tempDiv.textContent || tempDiv.innerText;
+        const lines = text.split('\n');
+        const truncatedLines = lines.slice(0, 2);
+        const truncatedContent = truncatedLines.join('<br>') + (lines.length > 5 ? '<br>...' : '');
+        setPreview({ content: truncatedContent, readingTime, wordCount });
+      }
+    } catch (error) {
+      setErrors(prev => ({ ...prev, processing: error.message }));
+    } finally {
+      setLoading(prev => ({ ...prev, contentProcess: false }));
+    }
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 's':
+            e.preventDefault();
+            handleAddArticle(e);
+            break;
+          case 'p':
+            e.preventDefault();
+            handlePreview();
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [formData]);
 
   useEffect(() => {
     const fetchFolders = async () => {
       if (!currentUser) return;
       try {
+        setLoading(prev => ({ ...prev, foldersFetch: true }));
         const userFolders = await fetchUserFolders(currentUser.uid);
         setFolders(userFolders);
       } catch (error) {
         console.error("Error fetching folders:", error);
+      } finally {
+        setLoading(prev => ({ ...prev, foldersFetch: false }));
       }
     };
     fetchFolders();
@@ -63,7 +215,7 @@ function AddArticle() {
   const FolderItem = ({ folder }) => {
     const isExpanded = expandedFolders.has(folder.id);
     const hasChildren = folder.children && folder.children.length > 0;
-    const isSelected = selectedFolder === folder.id;
+    const isSelected = formData.selectedFolder === folder.id;
 
     return (
       <div>
@@ -71,7 +223,7 @@ function AddArticle() {
           className={`flex items-center px-4 py-2 cursor-pointer transition-colors duration-150 
             ${isSelected ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
           onClick={() => {
-            setSelectedFolder(folder.id);
+            handleFormChange('selectedFolder', folder.id);
             setIsDropdownOpen(false);
             logFeatureUse('select_folder', {
               folder_id: folder.id,
@@ -145,30 +297,27 @@ function AddArticle() {
   }, []);
 
   const handleFileChange = (e) => {
-    if (e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-    }
+    handleFormChange('file', e.target.files[0]);
   };
 
   const uploadFileToStorage = async () => {
-    if (!file) return;
+    if (!formData.file) return;
 
-    const storageRef = ref(storage, `articles/${currentUser.uid}/${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const storageRef = ref(storage, `articles/${currentUser.uid}/${formData.file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, formData.file);
 
     return new Promise((resolve, reject) => {
       uploadTask.on(
         "state_changed",
-        () => {
-          setIsUploading(true);
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
         },
         (error) => {
-          setIsUploading(false);
           reject(error);
         },
         () => {
           getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            setIsUploading(false);
             resolve(downloadURL);
           });
         },
@@ -178,18 +327,21 @@ function AddArticle() {
 
   const handleAddArticle = async (e) => {
     e.preventDefault();
-    setError("");
+    setErrors({});
     setSuccess("");
 
     if (!currentUser) {
-      setError("You must be logged in to add an article.");
+      setErrors({ submission: "You must be logged in to add an article." });
       return;
     }
 
-    try {
-      logFeatureUse('start_article_add', { has_file: !!file });
+    if (!validateForm()) return;
 
-      let sourceURL = source;
+    try {
+      setLoading(prev => ({ ...prev, submission: true }));
+      logFeatureUse('start_article_add', { has_file: !!formData.file });
+
+      let sourceURL = formData.source;
       let articleContent = "";
       let articleSummary = "";
       let plaintext = "";
@@ -203,14 +355,14 @@ function AddArticle() {
       let autoTags = [];
 
       // URL Content Processing
-      if (filetype === "URL") {
+      if (formData.filetype === "URL") {
         try {
           const {
             content,
             readingTime,
             wordCount,
             plaintext: extractedPlaintext,
-          } = await fetchAndProcessContent(source);
+          } = await fetchAndProcessContent(formData.source);
           articleContent = content;
           plaintext = extractedPlaintext;
           autoTags = generateTags(plaintext);
@@ -224,17 +376,15 @@ function AddArticle() {
           };
         } catch (contentError) {
           console.error("Failed to process URL content:", contentError);
-          setError(
-            `Failed to extract content from the URL. Please try a different URL. ${contentError}`,
-          );
+          setErrors({ processing: `Failed to extract content from the URL. ${contentError}` });
           logError('article_add_error', `Failed to extract content from the URL. ${contentError}`, {
-            has_file: !!file,
-            has_url: !!source,
-            has_folder: !!selectedFolder
+            has_file: !!formData.file,
+            has_url: !!formData.source,
+            has_folder: !!formData.selectedFolder
           });
           return;
         }
-      } else if ((filetype === "HTML" || filetype === "PDF") && file) {
+      } else if ((formData.filetype === "HTML" || formData.filetype === "PDF") && formData.file) {
         sourceURL = await uploadFileToStorage();
         try {
           const {
@@ -256,26 +406,26 @@ function AddArticle() {
           };
         } catch (contentError) {
           console.error("Failed to process file content:", contentError);
-          setError(
-            `Failed to extract content from the uploaded file. Please try again. ${contentError}`,
-          );
+          setErrors({ processing: `Failed to extract content from the uploaded file. ${contentError}` });
           logError('article_add_error', `Failed to extract content from the uploaded file. ${contentError}`, {
-            has_file: !!file,
-            has_url: !!source,
-            has_folder: !!selectedFolder
+            has_file: !!formData.file,
+            has_url: !!formData.source,
+            has_folder: !!formData.selectedFolder
           });
           return;
         }
-      } else if (filetype === "PLAINTEXT") {
+      } else if (formData.filetype === "PLAINTEXT") {
         // Process plaintext input directly
-        plaintext = source;
-        articleContent = source; // Use the same content for markdown since it's plaintext
-        const wordCount = source.split(/\s+/).length;
+        plaintext = formData.source;
+        // Convert newlines to <br> tags for markdown display
+        articleContent = formData.source.replace(/\n/g, '<br>');
+        // Count words properly by splitting on whitespace and newlines
+        const wordCount = formData.source.trim().split(/[\s\n]+/).filter(word => word.length > 0).length;
         const readingTime = Math.ceil(wordCount / 200); // Assuming 200 words per minute
         autoTags = generateTags(plaintext);
         articleSummary = await summarizeContent(plaintext);
         readInfo = {
-          text: source,
+          text: formData.source,
           minutes: readingTime.toString(),
           time: readingTime.toString(),
           summary: articleSummary,
@@ -285,15 +435,17 @@ function AddArticle() {
       }
 
       const folderName =
-        folders.find((folder) => folder.id === selectedFolder)?.name || "";
+        folders.find((folder) => folder.id === formData.selectedFolder)?.name || "";
+
+      const cleanedTags = formData.tags.map(tag => tag.trim()).filter(tag => tag !== '');
 
       const result = await addArticle({
-        title,
-        filetype,
-        public: publicStatus,
+        title: formData.title,
+        filetype: formData.filetype,
+        public: formData.publicStatus,
         source: sourceURL,
-        status,
-        tags,
+        status: formData.status,
+        tags: cleanedTags,
         autoTags,
         userid: currentUser.uid,
         archived: false,
@@ -301,7 +453,7 @@ function AddArticle() {
         plaintext,
         read: readInfo,
         summary: articleSummary,
-        folderId: selectedFolder,
+        folderId: formData.selectedFolder,
         folderName,
       });
 
@@ -312,24 +464,56 @@ function AddArticle() {
       const articleId = result.id;
 
       // Track successful article addition
-      logArticleAdd(articleId, selectedFolder);
+      logArticleAdd(articleId, formData.selectedFolder);
 
       // Update folder with the new article ID if a folder is selected
-      if (selectedFolder) {
-        await updateFolderWithArticle(selectedFolder, articleId);
+      if (formData.selectedFolder) {
+        await updateFolderWithArticle(formData.selectedFolder, articleId);
       }
 
       setSuccess("Article added successfully!");
+      resetForm();
+      
+      // Show a temporary success message at the bottom
+      const successDiv = document.createElement('div');
+      successDiv.className = 'fixed bottom-8 right-8 bg-green-500 text-white px-8 py-4 rounded-xl shadow-2xl text-lg font-bold transform transition-all duration-300 ease-out';
+      successDiv.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Article Added Successfully!</span>
+        </div>
+      `;
+      
+      // Add initial transform
+      successDiv.style.transform = 'translateY(100px)';
+      document.body.appendChild(successDiv);
+      
+      // Trigger animation
+      setTimeout(() => {
+        successDiv.style.transform = 'translateY(0)';
+      }, 10);
+      
+      // Remove with fade out animation
+      setTimeout(() => {
+        successDiv.style.transform = 'translateY(100px)';
+        successDiv.style.opacity = '0';
+        setTimeout(() => {
+          document.body.removeChild(successDiv);
+        }, 300);
+      }, 2700);
+
     } catch (error) {
       console.error("Failed to add article:", error);
-      setError(`Failed to add article: ${error.message}`);
+      setErrors({ submission: `Failed to add article: ${error.message}` });
       logError('article_add_error', error.message, {
-        has_file: !!file,
-        has_url: !!source,
-        has_folder: !!selectedFolder
+        has_file: !!formData.file,
+        has_url: !!formData.source,
+        has_folder: !!formData.selectedFolder
       });
     } finally {
-      setIsUploading(false);
+      setLoading(prev => ({ ...prev, submission: false }));
     }
   };
 
@@ -347,6 +531,36 @@ function AddArticle() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 120, damping: 18 }}
       >
+        {/* Cancel Confirmation Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <motion.div
+              className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            >
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">Confirm Cancel</h2>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to cancel? All progress will be lost.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={confirmCancel}
+                  className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-200"
+                >
+                  Yes, Cancel
+                </button>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                >
+                  No, Continue
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
         <motion.h1
           className="text-4xl font-bold text-center text-blue-700"
           initial={{ scale: 0.85 }}
@@ -355,14 +569,14 @@ function AddArticle() {
         >
           Add New Article
         </motion.h1>
-        {error && (
+        {Object.keys(errors).some(key => errors[key]) && (
           <motion.p
             className="text-red-600 text-center"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
           >
-            {error}
+            {Object.values(errors).join(', ')}
           </motion.p>
         )}
         {success && (
@@ -384,8 +598,8 @@ function AddArticle() {
             <input
               type="text"
               placeholder="Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={formData.title}
+              onChange={(e) => handleFormChange('title', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
               required
             />
@@ -396,8 +610,8 @@ function AddArticle() {
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <select
-              value={filetype}
-              onChange={(e) => setFiletype(e.target.value)}
+              value={formData.filetype}
+              onChange={(e) => handleFormChange('filetype', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out"
               required
             >
@@ -412,28 +626,28 @@ function AddArticle() {
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
-            {filetype === "URL" ? (
+            {formData.filetype === "URL" ? (
               <input
                 type="text"
                 placeholder="Source (URL)"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
+                value={formData.source}
+                onChange={(e) => handleFormChange('source', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
                 required
               />
-            ) : filetype === "PLAINTEXT" ? (
+            ) : formData.filetype === "PLAINTEXT" ? (
               <textarea
                 type="text"
                 placeholder="Source (PLAINTEXT)"
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
+                value={formData.source}
+                onChange={(e) => handleFormChange('source', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
                 required
               />
             ) : (
               <input
                 type="file"
-                accept={filetype === "PDF" ? "application/pdf" : "text/html"}
+                accept={formData.filetype === "PDF" ? "application/pdf" : "text/html"}
                 onChange={handleFileChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
                 required
@@ -446,8 +660,8 @@ function AddArticle() {
             transition={{ type: "spring", stiffness: 100, damping: 15 }}
           >
             <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              value={formData.status}
+              onChange={(e) => handleFormChange('status', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out"
               required
             >
@@ -463,10 +677,11 @@ function AddArticle() {
             <input
               type="text"
               placeholder="Tags (comma-separated)"
-              value={tags}
+              value={formData.tags.join(', ')}
               onChange={(e) => {
-                const tagsList = e.target.value.split(",");
-                setTags(tagsList.map((tag) => tag.trim()));
+                const inputValue = e.target.value;
+                const tags = inputValue === '' ? [''] : inputValue.split(',').map(tag => tag.trim());
+                handleFormChange('tags', tags);
               }}
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
             />
@@ -479,8 +694,8 @@ function AddArticle() {
           >
             <input
               type="checkbox"
-              checked={publicStatus}
-              onChange={(e) => setPublicStatus(e.target.checked)}
+              checked={formData.publicStatus}
+              onChange={(e) => handleFormChange('publicStatus', e.target.checked)}
               className="mr-2 focus:ring-blue-600"
             />
             <label className="text-gray-800">Public</label>
@@ -514,8 +729,8 @@ function AddArticle() {
                   />
                 </svg>
                 <span>
-                  {selectedFolder
-                    ? folders.find((folder) => folder.id === selectedFolder)?.name || "No Folder"
+                  {formData.selectedFolder
+                    ? folders.find((folder) => folder.id === formData.selectedFolder)?.name || "No Folder"
                     : "No Folder"}
                 </span>
               </div>
@@ -541,7 +756,7 @@ function AddArticle() {
                   <div
                     className="py-2 hover:bg-gray-100 cursor-pointer px-4"
                     onClick={() => {
-                      setSelectedFolder(null);
+                      handleFormChange('selectedFolder', null);
                       setIsDropdownOpen(false);
                     }}
                   >
@@ -554,18 +769,44 @@ function AddArticle() {
               </div>
             )}
           </motion.div>
+          {preview.content && (
+            <motion.div
+              className="mt-6 p-4 border border-gray-300 rounded-lg"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+            >
+              <div className="flex justify-between mb-2 text-sm text-gray-600">
+                <span>Reading Time: {preview.readingTime}</span>
+                <span>Word Count: {preview.wordCount}</span>
+              </div>
+              <div 
+                className="prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: preview.content }}
+              />
+            </motion.div>
+          )}
           <motion.button
             type="submit"
             className={`w-full py-3 text-white font-semibold rounded-md shadow-lg transition-transform duration-200 ease-in-out ${
-              isUploading
+              loading.submission
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
             }`}
-            disabled={isUploading}
+            disabled={loading.submission}
             whileTap={{ scale: 0.95 }}
             transition={{ duration: 0.2 }}
           >
-            {isUploading ? "Uploading..." : "Add Article"}
+            {loading.submission ? "Adding..." : "Add Article"}
+          </motion.button>
+          <motion.button
+            type="button"
+            className="w-full py-3 text-white font-semibold rounded-md shadow-lg transition-transform duration-200 ease-in-out bg-red-600 hover:bg-red-700 transform hover:scale-105"
+            onClick={handleCancel}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+          >
+            Cancel
           </motion.button>
         </form>
       </motion.div>
