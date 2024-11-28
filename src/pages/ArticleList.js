@@ -337,20 +337,19 @@ function ArticleList() {
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Articles</h1>
-      {/* Search Bar and Filter Button */}
-      <div className="flex items-center mb-4">
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <h1 className="text-4xl font-bold mb-6 text-gray-800">Articles</h1>
+      <div className="flex items-center mb-6">
         <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <button
           onClick={() => setShowFilterMenu(!showFilterMenu)}
-          className="p-2 ml-2 bg-gray-200 rounded hover:bg-gray-300"
+          className="p-2 ml-2 bg-white border border-gray-300 rounded hover:bg-gray-200"
         >
           <FaFilter />
         </button>
         <button
           onClick={toggleViewMode}
-          className="p-2 ml-4 bg-gray-200 rounded hover:bg-gray-300"
+          className="p-2 ml-4 bg-white border border-gray-300 rounded hover:bg-gray-200"
         >
           {viewMode === "grid" ? <FaList /> : <FaTh />}
         </button>
@@ -389,7 +388,7 @@ function ArticleList() {
         )}
       {/* Article List */}
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredArticles.map((article, index) => (
             <motion.div
               key={article.id}
