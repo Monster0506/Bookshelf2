@@ -33,6 +33,9 @@ function AddArticle() {
     selectedFolder: null
   });
 
+  // New state for tag input
+  const [tagInput, setTagInput] = useState("");
+
   // Error states
   const [errors, setErrors] = useState({
     title: "",
@@ -325,6 +328,34 @@ function AddArticle() {
     });
   };
 
+  // Add new tag handler
+  const handleAddTag = (e) => {
+    e.preventDefault();
+    if (tagInput.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tagInput.trim()]
+      }));
+      setTagInput("");
+    }
+  };
+
+  // Remove tag handler
+  const handleRemoveTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  // Handle tag input keypress
+  const handleTagKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag(e);
+    }
+  };
+
   const handleAddArticle = async (e) => {
     e.preventDefault();
     setErrors({});
@@ -589,134 +620,198 @@ function AddArticle() {
             {success}
           </motion.p>
         )}
-        <form onSubmit={handleAddArticle} className="space-y-6">
-          <motion.div
-            initial={{ x: -30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          >
-            <input
-              type="text"
-              placeholder="Title"
-              value={formData.title}
-              onChange={(e) => handleFormChange('title', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
-              required
-            />
-          </motion.div>
-          <motion.div
-            initial={{ x: 30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          >
-            <select
-              value={formData.filetype}
-              onChange={(e) => handleFormChange('filetype', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out"
-              required
+        <form onSubmit={handleAddArticle} className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Title Input - Full Width */}
+            <motion.div
+              className="md:col-span-2"
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
             >
-              <option value="URL">URL</option>
-              <option value="PDF">PDF</option>
-              <option value="HTML">HTML</option>
-              <option value="PLAINTEXT">PLAINTEXT</option>
-            </select>
-          </motion.div>
-          <motion.div
-            initial={{ x: -30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          >
-            {formData.filetype === "URL" ? (
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Title
+              </label>
               <input
                 type="text"
-                placeholder="Source (URL)"
-                value={formData.source}
-                onChange={(e) => handleFormChange('source', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
+                placeholder="Article Title"
+                value={formData.title}
+                onChange={(e) => handleFormChange('title', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out shadow-sm"
                 required
               />
-            ) : formData.filetype === "PLAINTEXT" ? (
-              <textarea
-                type="text"
-                placeholder="Source (PLAINTEXT)"
-                value={formData.source}
-                onChange={(e) => handleFormChange('source', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
-                required
-              />
-            ) : (
-              <input
-                type="file"
-                accept={formData.filetype === "PDF" ? "application/pdf" : "text/html"}
-                onChange={handleFileChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
-                required
-              />
-            )}
-          </motion.div>
-          <motion.div
-            initial={{ x: 30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          >
-            <select
-              value={formData.status}
-              onChange={(e) => handleFormChange('status', e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out"
-              required
+            </motion.div>
+
+            {/* File Type Select */}
+            <motion.div
+              initial={{ x: 30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
             >
-              <option value="READ">READ</option>
-              <option value="UNREAD">UNREAD</option>
-            </select>
-          </motion.div>
-          <motion.div
-            initial={{ x: -30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          >
-            <input
-              type="text"
-              placeholder="Tags (comma-separated)"
-              value={formData.tags.join(', ')}
-              onChange={(e) => {
-                const inputValue = e.target.value;
-                const tags = inputValue === '' ? [''] : inputValue.split(',').map(tag => tag.trim());
-                handleFormChange('tags', tags);
-              }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out"
-            />
-          </motion.div>
-          <motion.div
-            className="flex items-center"
-            initial={{ x: 30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-          >
-            <input
-              type="checkbox"
-              checked={formData.publicStatus}
-              onChange={(e) => handleFormChange('publicStatus', e.target.checked)}
-              className="mr-2 focus:ring-blue-600"
-            />
-            <label className="text-gray-800">Public</label>
-          </motion.div>
-          <motion.div
-            className="mb-6 relative"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 100, damping: 15 }}
-            ref={dropdownRef}
-          >
-            <label className="block text-lg font-medium mb-2">
-              Select Folder
-            </label>
-            <div
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition-all duration-200 ease-in-out cursor-pointer flex items-center justify-between"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Content Type
+              </label>
+              <select
+                value={formData.filetype}
+                onChange={(e) => handleFormChange('filetype', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out shadow-sm"
+                required
+              >
+                <option value="URL">URL</option>
+                <option value="PDF">PDF</option>
+                <option value="HTML">HTML</option>
+                <option value="PLAINTEXT">PLAINTEXT</option>
+              </select>
+            </motion.div>
+
+            {/* Reading Status Select */}
+            <motion.div
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
             >
-              <div className="flex items-center">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reading Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => handleFormChange('status', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition duration-200 ease-in-out shadow-sm"
+                required
+              >
+                <option value="READ">READ</option>
+                <option value="UNREAD">UNREAD</option>
+              </select>
+            </motion.div>
+
+            {/* Source Input - Full Width */}
+            <motion.div
+              className="md:col-span-2"
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+            >
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {formData.filetype === "URL" ? "URL" : 
+                 formData.filetype === "PLAINTEXT" ? "Content" : 
+                 "File"}
+              </label>
+              {formData.filetype === "URL" ? (
+                <input
+                  type="text"
+                  placeholder="Enter URL"
+                  value={formData.source}
+                  onChange={(e) => handleFormChange('source', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out shadow-sm"
+                  required
+                />
+              ) : formData.filetype === "PLAINTEXT" ? (
+                <textarea
+                  placeholder="Enter content"
+                  value={formData.source}
+                  onChange={(e) => handleFormChange('source', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out shadow-sm min-h-[100px]"
+                  required
+                />
+              ) : (
+                <input
+                  type="file"
+                  accept={formData.filetype === "PDF" ? "application/pdf" : "text/html"}
+                  onChange={handleFileChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out shadow-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  required
+                />
+              )}
+            </motion.div>
+
+            {/* Tags Section - Full Width */}
+            <motion.div
+              className="md:col-span-2 space-y-2"
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+            >
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Add a tag"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyPress={handleTagKeyPress}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition duration-200 ease-in-out shadow-sm"
+                />
+                <button
+                  onClick={handleAddTag}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 ease-in-out shadow-sm"
+                  type="button"
+                >
+                  Add Tag
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 min-h-[40px] p-3 border border-gray-200 rounded-lg bg-gray-50">
+                {formData.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 shadow-sm"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => handleRemoveTag(tag)}
+                      className="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {formData.tags.length === 0 && (
+                  <span className="text-gray-400 text-sm">No tags added yet</span>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Folder Selection - Full Width */}
+            <motion.div
+              className="md:col-span-2 relative"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+              ref={dropdownRef}
+            >
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Folder
+              </label>
+              <div
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white transition-all duration-200 ease-in-out cursor-pointer flex items-center justify-between shadow-sm"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <div className="flex items-center">
+                  <svg
+                    className="w-5 h-5 mr-2 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
+                  </svg>
+                  <span>
+                    {formData.selectedFolder
+                      ? folders.find((folder) => folder.id === formData.selectedFolder)?.name || "No Folder"
+                      : "No Folder"}
+                  </span>
+                </div>
                 <svg
-                  className="w-5 h-5 mr-2 text-gray-500"
+                  className={`w-5 h-5 transform transition-transform duration-200 ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -725,60 +820,60 @@ function AddArticle() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    d="M19 9l-7 7-7-7"
                   />
                 </svg>
-                <span>
-                  {formData.selectedFolder
-                    ? folders.find((folder) => folder.id === formData.selectedFolder)?.name || "No Folder"
-                    : "No Folder"}
-                </span>
               </div>
-              <svg
-                className={`w-5 h-5 transform transition-transform duration-200 ${
-                  isDropdownOpen ? "rotate-180" : ""
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
-            {isDropdownOpen && (
-              <div className="absolute mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg z-10">
-                <div className="max-h-60 overflow-y-auto">
-                  <div
-                    className="py-2 hover:bg-gray-100 cursor-pointer px-4"
-                    onClick={() => {
-                      handleFormChange('selectedFolder', null);
-                      setIsDropdownOpen(false);
-                    }}
-                  >
-                    No Folder
+              {isDropdownOpen && (
+                <div className="absolute mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                  <div className="max-h-60 overflow-y-auto">
+                    <div
+                      className="py-2 px-4 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => {
+                        handleFormChange('selectedFolder', null);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      No Folder
+                    </div>
+                    {folders.map((folder) => (
+                      <FolderItem key={folder.id} folder={folder} />
+                    ))}
                   </div>
-                  {folders.map((folder) => (
-                    <FolderItem key={folder.id} folder={folder} />
-                  ))}
                 </div>
-              </div>
-            )}
-          </motion.div>
+              )}
+            </motion.div>
+
+            {/* Public Status Checkbox */}
+            <motion.div
+              className="md:col-span-2"
+              initial={{ x: 30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, damping: 15 }}
+            >
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.publicStatus}
+                  onChange={(e) => handleFormChange('publicStatus', e.target.checked)}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Make this article public</span>
+              </label>
+            </motion.div>
+          </div>
+
+          {/* Preview Section */}
           {preview.content && (
             <motion.div
-              className="mt-6 p-4 border border-gray-300 rounded-lg"
+              className="mt-6 p-6 border border-gray-300 rounded-lg bg-gray-50"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: "spring", stiffness: 100, damping: 15 }}
             >
-              <div className="flex justify-between mb-2 text-sm text-gray-600">
-                <span>Reading Time: {preview.readingTime}</span>
-                <span>Word Count: {preview.wordCount}</span>
+              <div className="flex justify-between mb-4 text-sm text-gray-600">
+                <span className="font-medium">Reading Time: {preview.readingTime} min</span>
+                <span className="font-medium">Word Count: {preview.wordCount}</span>
               </div>
               <div 
                 className="prose max-w-none"
@@ -786,27 +881,30 @@ function AddArticle() {
               />
             </motion.div>
           )}
+
+          {/* Submit Button */}
           <motion.button
             type="submit"
-            className={`w-full py-3 text-white font-semibold rounded-md shadow-lg transition-transform duration-200 ease-in-out ${
+            className={`w-full py-4 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 ease-in-out ${
               loading.submission
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 transform hover:scale-105"
+                : "bg-blue-600 hover:bg-blue-700 transform hover:scale-[1.02]"
             }`}
             disabled={loading.submission}
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: 0.98 }}
             transition={{ duration: 0.2 }}
           >
-            {loading.submission ? "Adding..." : "Add Article"}
-          </motion.button>
-          <motion.button
-            type="button"
-            className="w-full py-3 text-white font-semibold rounded-md shadow-lg transition-transform duration-200 ease-in-out bg-red-600 hover:bg-red-700 transform hover:scale-105"
-            onClick={handleCancel}
-            whileTap={{ scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-          >
-            Cancel
+            {loading.submission ? (
+              <div className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Adding Article...
+              </div>
+            ) : (
+              "Add Article"
+            )}
           </motion.button>
         </form>
       </motion.div>
