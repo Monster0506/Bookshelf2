@@ -4,7 +4,7 @@ import { updateProfile, updateEmail, updatePassword, deleteUser } from "firebase
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { motion } from "framer-motion";
 import { db } from "../firebaseConfig";
-import { collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, getDocs, deleteDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import Loading from "../components/Loading";
 
@@ -18,9 +18,15 @@ function Profile() {
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [timeUnit, setTimeUnit] = useState('minutes');
+  const [wordUnit, setWordUnit] = useState('words');
   const [userStats, setUserStats] = useState({
     totalArticles: 0,
-    lastArticleDate: null
+    lastArticleDate: null,
+    totalWords: 0,
+    averageWordsPerArticle: 0,
+    totalReadingTime: 0,
+    averageReadingTime: 0
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -30,23 +36,53 @@ function Profile() {
       
       try {
         const articlesRef = collection(db, "articles");
-        const userArticlesQuery = query(articlesRef, where("userid", "==", currentUser.uid));
+        
+        // Create optimized queries for stats
+        const userArticlesQuery = query(
+          articlesRef,
+          where("userid", "==", currentUser.uid),
+          orderBy("date", "desc")
+        );
+        
         const querySnapshot = await getDocs(userArticlesQuery);
         
         let totalArticles = 0;
         let lastArticleDate = null;
-
+        let totalWords = 0;
+        let totalReadingTime = 0;
+        
+        // Process stats in a single pass
         querySnapshot.forEach((doc) => {
-          totalArticles++;
           const article = doc.data();
+          totalArticles++;
+          
+          // Calculate word count from content and notes
+          const contentWords = (article.plaintext || '').trim().split(/\s+/).filter(word => word.length > 0).length;
+          const noteWords = (article.note || '').trim().split(/\s+/).filter(word => word.length > 0).length;
+          const articleWordCount = contentWords + noteWords;
+          
+          totalWords += articleWordCount;
+          
+          // Calculate reading time (assuming 200 words per minute)
+          const articleReadingTime = Math.ceil(articleWordCount / 200);
+          totalReadingTime += articleReadingTime;
+          
           if (!lastArticleDate || article.date > lastArticleDate) {
             lastArticleDate = article.date;
           }
         });
 
+        // Calculate averages
+        const averageWords = totalArticles ? Math.round(totalWords / totalArticles) : 0;
+        const averageReadingTime = totalArticles ? Math.round(totalReadingTime / totalArticles) : 0;
+
         setUserStats({
           totalArticles,
-          lastArticleDate: lastArticleDate ? lastArticleDate.toDate().toLocaleDateString() : null
+          lastArticleDate: lastArticleDate ? lastArticleDate.toDate().toLocaleDateString() : null,
+          totalWords,
+          averageWordsPerArticle: averageWords,
+          totalReadingTime,
+          averageReadingTime
         });
       } catch (error) {
         console.error("Error fetching user stats:", error);
@@ -61,6 +97,67 @@ function Profile() {
   if (loading) {
     return <Loading />;
   }
+
+  // Function to cycle through time units
+  const cycleTimeUnit = () => {
+    const units = ['minutes', 'hours', 'days'];
+    const currentIndex = units.indexOf(timeUnit);
+    const nextIndex = (currentIndex + 1) % units.length;
+    setTimeUnit(units[nextIndex]);
+  };
+
+  // Function to cycle through word units
+  const cycleWordUnit = () => {
+    const units = ['words', 'pages', 'books', 'moby-dicks', 'war-and-peaces'];
+    const currentIndex = units.indexOf(wordUnit);
+    const nextIndex = (currentIndex + 1) % units.length;
+    setWordUnit(units[nextIndex]);
+  };
+
+  // Function to format time based on current unit
+  const formatTime = (minutes) => {
+    switch (timeUnit) {
+      case 'hours':
+        return (minutes / 60).toFixed(1);
+      case 'days':
+        return (minutes / 1440).toFixed(1);
+      default: // minutes
+        return Math.round(minutes);
+    }
+  };
+
+  // Function to format words based on current unit
+  const formatWords = (words) => {
+    switch (wordUnit) {
+      case 'pages':
+        return (words / 250).toFixed(1); 
+      case 'books':
+        return (words / 63500).toFixed(2);
+      case 'moby-dicks':
+        return (words / 209117).toFixed(2); 
+      case 'war-and-peaces':
+        return (words / 460000).toFixed(2); 
+      default: 
+        return words.toLocaleString(); 
+    }
+  };
+
+  // Function to get unit label
+  const getTimeUnitLabel = () => {
+    return timeUnit.charAt(0).toUpperCase() + timeUnit.slice(1);
+  };
+
+  // Function to get word unit label
+  const getWordUnitLabel = () => {
+    switch (wordUnit) {
+      case 'moby-dicks':
+        return 'Moby Dicks';
+      case 'war-and-peaces':
+        return 'War and Peaces';
+      default:
+        return wordUnit.charAt(0).toUpperCase() + wordUnit.slice(1);
+    }
+  };
 
   // Handle profile picture upload
   const handleProfilePictureChange = async (e) => {
@@ -264,6 +361,50 @@ function Profile() {
               {userStats.lastArticleDate || 'No articles yet'}
             </div>
             <div className="text-gray-600">Last Article</div>
+          </motion.div>
+          <motion.div
+            className="bg-white p-6 rounded-2xl shadow-lg text-center cursor-pointer"
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.2 }}
+            onClick={cycleWordUnit}
+          >
+            <div className="text-5xl font-bold text-blue-500 mb-2">
+              {formatWords(userStats.totalWords)}
+            </div>
+            <div className="text-gray-600">Total {getWordUnitLabel()}</div>
+          </motion.div>
+          <motion.div
+            className="bg-white p-6 rounded-2xl shadow-lg text-center cursor-pointer"
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.2 }}
+            onClick={cycleWordUnit}
+          >
+            <div className="text-gray-900 font-semibold mb-2">
+              {formatWords(userStats.averageWordsPerArticle)}
+            </div>
+            <div className="text-gray-600">Average {getWordUnitLabel()} per Article</div>
+          </motion.div>
+          <motion.div
+            className="bg-white p-6 rounded-2xl shadow-lg text-center cursor-pointer"
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.2 }}
+            onClick={cycleTimeUnit}
+          >
+            <div className="text-5xl font-bold text-blue-500 mb-2">
+              {formatTime(userStats.totalReadingTime)}
+            </div>
+            <div className="text-gray-600">Total Reading Time ({getTimeUnitLabel()})</div>
+          </motion.div>
+          <motion.div
+            className="bg-white p-6 rounded-2xl shadow-lg text-center cursor-pointer"
+            whileHover={{ y: -2 }}
+            transition={{ duration: 0.2 }}
+            onClick={cycleTimeUnit}
+          >
+            <div className="text-gray-900 font-semibold mb-2">
+              {formatTime(userStats.averageReadingTime)}
+            </div>
+            <div className="text-gray-600">Average Reading Time per Article ({getTimeUnitLabel()})</div>
           </motion.div>
         </div>
 
