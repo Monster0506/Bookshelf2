@@ -70,29 +70,43 @@ function FolderList() {
       const articles = await fetchArticlesInFolder(folderId);
       setFolderArticles(prev => ({
         ...prev,
-        [folderId]: articles
+        [folderId]: articles || [] // Ensure we always have an array
       }));
     } catch (error) {
       console.error("Error loading folder articles:", error);
+      setFolderArticles(prev => ({
+        ...prev,
+        [folderId]: [] // Set empty array on error
+      }));
     }
   };
 
   const toggleArticles = async (folderId) => {
-    if (expandedFolders.has(folderId)) {
+    try {
+      if (expandedFolders.has(folderId)) {
+        setExpandedFolders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(folderId);
+          return newSet;
+        });
+      } else {
+        setExpandedFolders(prev => {
+          const newSet = new Set(prev);
+          newSet.add(folderId);
+          return newSet;
+        });
+        if (!folderArticles[folderId]) {
+          await loadFolderArticles(folderId);
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling folder:", error);
+      // Keep the folder closed on error
       setExpandedFolders(prev => {
         const newSet = new Set(prev);
         newSet.delete(folderId);
         return newSet;
       });
-    } else {
-      setExpandedFolders(prev => {
-        const newSet = new Set(prev);
-        newSet.add(folderId);
-        return newSet;
-      });
-      if (!folderArticles[folderId]) {
-        await loadFolderArticles(folderId);
-      }
     }
   };
 

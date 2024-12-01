@@ -78,7 +78,21 @@ function Sidebar({
           setFolderName("");
           setFolderId("");
         } else {
-          const selectedFolderData = folders.find((folder) => folder.id === value);
+          // Find the folder in the flattened folder structure
+          const findFolder = (folders) => {
+            for (const folder of folders) {
+              if (folder.id === value) {
+                return folder;
+              }
+              if (folder.children?.length > 0) {
+                const found = findFolder(folder.children);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+
+          const selectedFolderData = findFolder(folders);
           if (selectedFolderData) {
             setSelectedFolder(value);
             setFolderName(selectedFolderData.name);
@@ -163,10 +177,18 @@ function Sidebar({
       <div key={folder.id}>
         <div
           className={`flex items-center p-2 cursor-pointer hover:bg-gray-100 ${
-            isSelected ? "bg-blue-50" : ""
+            editing && isSelected ? "bg-blue-100 border-l-4 border-blue-500" : ""
           }`}
-          style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
-          onClick={() => handleMetadataChange("folderId", folder.id)}
+          style={{ 
+            paddingLeft: `${level * 1.5 + 0.5}rem`,
+            transition: 'all 0.2s ease-in-out'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (editing) {
+              handleMetadataChange("folderId", folder.id);
+            }
+          }}
         >
           {hasChildren && (
             <button
@@ -174,17 +196,24 @@ function Sidebar({
                 e.stopPropagation();
                 toggleFolder(folder.id);
               }}
-              className="mr-2 text-gray-500 hover:text-gray-700"
+              className="mr-2 text-gray-500 hover:text-gray-700 transition-transform duration-200"
+              style={{
+                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+              }}
             >
-              {isExpanded ? "▼" : "▶"}
+              ▶
             </button>
           )}
-          <span className="truncate" style={{ color: folder.color }}>
+          <span 
+            className={`truncate ${isSelected ? "font-medium" : ""}`} 
+            style={{ color: folder.color }}
+          >
             {folder.name}
+            {isSelected && !editing && " ✓"}
           </span>
         </div>
         {hasChildren && isExpanded && (
-          <div>
+          <div className="border-l border-gray-200 ml-3">
             {folder.children.map(child => renderFolderOption(child, level + 1))}
           </div>
         )}
@@ -399,43 +428,74 @@ function Sidebar({
               )}
 
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Folder</h3>
-                <div className="space-y-2">
-                  {editing ? (
-                    <>
-                      <div className="max-h-32 overflow-y-auto border rounded-lg bg-white">
-                        <div 
-                          className="p-2 hover:bg-gray-50 cursor-pointer border-b"
-                          onClick={() => handleMetadataChange("folderId", "")}
+                <h3 className="text-sm font-medium text-gray-700">
+                  {editing ? "Select Folder" : "Current Folder"}
+                </h3>
+                {!editing && (
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      {folderId ? (
+                        <Link 
+                          to={`/folders/${folderId}`}
+                          className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1 group"
                         >
-                          <span className="text-gray-500 text-sm">No Folder</span>
-                        </div>
-                        {folders.map(folder => renderFolderOption(folder))}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={newFolderName}
-                          onChange={(e) => setNewFolderName(e.target.value)}
-                          placeholder="New folder name"
-                          className="flex-grow p-2 text-sm border rounded-lg focus:ring-1 focus:ring-blue-500"
-                        />
-                        <button
-                          onClick={handleAddFolder}
-                          className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                        >
-                          <FaPlus size={14} />
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="p-2 border rounded-lg bg-white">
-                      <span className="text-sm text-gray-600">
-                        {folderName || "No Folder"}
-                      </span>
+                          <span>{folderName}</span>
+                          <svg 
+                            className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+                            />
+                          </svg>
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-gray-700">No Folder</span>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+                {editing && (
+                  <div className="bg-white border border-gray-200 rounded-md overflow-hidden max-h-60 overflow-y-auto">
+                    <div
+                      className={`flex items-center p-2 cursor-pointer hover:bg-gray-100 ${
+                        !selectedFolder ? "bg-blue-100 border-l-4 border-blue-500" : ""
+                      }`}
+                      onClick={() => editing && handleMetadataChange("folderId", "")}
+                    >
+                      <span className="truncate">No Folder</span>
+                    </div>
+                    {folders.map((folder) => renderFolderOption(folder))}
+                  </div>
+                )}
+                {editing && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <input
+                      type="text"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      placeholder="New folder name"
+                      className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleAddFolder();
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleAddFolder}
+                      className="p-1.5 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors"
+                      disabled={!newFolderName.trim()}
+                    >
+                      <FaPlus size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -36,8 +36,11 @@ function FolderView() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const articlesData = await fetchArticlesInFolder(folderId);
-        const folderData = await fetchFolder(folderId);
+        // Fetch folder and articles in parallel
+        const [folderData, articlesData] = await Promise.all([
+          fetchFolder(folderId),
+          fetchArticlesInFolder(folderId)
+        ]);
         
         if (!folderData.public && !currentUser) {
           setError("This folder is private. Please log in to view it.");
@@ -48,26 +51,37 @@ function FolderView() {
         setFolder(folderData);
         setArticles(articlesData);
 
-        // Fetch parent folder if it exists
-        if (folderData.parentId) {
-          const parentData = await fetchFolder(folderData.parentId);
-          setParentFolder(parentData);
-        } else {
-          setParentFolder(null);
-        }
-        
-        // Set subfolders if they exist
-        if (folderData.subfolders && folderData.subfolders.length > 0) {
-          const subfoldersData = await Promise.all(
-            folderData.subfolders.map(async childId => {
-              const subfolder = await fetchFolder(childId);
-              return subfolder;
-            })
-          );
-          const validSubfolders = subfoldersData.filter(Boolean);
-          setSubfolders(validSubfolders);
-        } else {
-          setSubfolders([]);
+        // Fetch related folder data in parallel
+        if (folderData) {
+          const relatedPromises = [];
+          
+          // Add parent folder fetch if needed
+          if (folderData.parentId) {
+            relatedPromises.push(
+              fetchFolder(folderData.parentId)
+                .then(parentData => setParentFolder(parentData))
+                .catch(() => setParentFolder(null))
+            );
+          }
+          
+          // Add subfolders fetch if needed
+          if (folderData.subfolders?.length > 0) {
+            const subfoldersPromise = Promise.all(
+              folderData.subfolders.map(childId => 
+                fetchFolder(childId)
+                  .then(subfolder => subfolder)
+                  .catch(() => null)
+              )
+            ).then(subfoldersData => {
+              const validSubfolders = subfoldersData.filter(Boolean);
+              setSubfolders(validSubfolders);
+            });
+            
+            relatedPromises.push(subfoldersPromise);
+          }
+          
+          // Wait for all related data to load
+          await Promise.all(relatedPromises);
         }
       } catch (err) {
         console.error("Error loading folder:", err);
@@ -76,6 +90,7 @@ function FolderView() {
         setLoading(false);
       }
     };
+    
     fetchData();
   }, [folderId, currentUser]);
 
