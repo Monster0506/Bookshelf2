@@ -15,6 +15,8 @@ import {
   collection,
   setDoc,
   updateDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { findRelatedArticles } from "../utils/articleUtils";
 import Header from "../components/ArticleDetails/Header";
@@ -50,59 +52,125 @@ function ArticleDetail() {
   const [isPublic, setIsPublic] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
+  const [highlights, setHighlights] = useState([]);
+  const [marginNotes, setMarginNotes] = useState([]);
+  const [highlightsLoading, setHighlightsLoading] = useState(true);
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [marginNotesLoading, setMarginNotesLoading] = useState(true);
 
-  const tabs = [
-    { id: "content", label: "Content" },
-    { id: "summary", label: "Summary" },
-    { id: "notes", label: "Notes" },
-    { id: "related", label: "Related Items" },
-    { id: "stats", label: "Article Statistics" },
-  ];
+  // Define tabs based on user permissions
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { id: "content", label: "Content" },
+      { id: "summary", label: "Summary" },
+      { id: "stats", label: "Article Statistics" },
+    ];
+
+    // Only show notes and related items tabs if user can edit
+    if (canEdit) {
+      baseTabs.splice(2, 0, 
+        { id: "notes", label: "Notes" },
+        { id: "related", label: "Related Items" }
+      );
+    }
+
+    return baseTabs;
+  }, [canEdit]);
+
+  // Redirect from protected tabs if user can't edit
+  useEffect(() => {
+    if (!canEdit && (activeTab === 'notes' || activeTab === 'related')) {
+      setActiveTab('content');
+    }
+  }, [canEdit, activeTab]);
 
   useEffect(() => {
-    const fetchArticle = async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError("");
       try {
-        const articleRef = doc(db, "articles", id);
-        const articleSnapshot = await getDoc(articleRef);
+        // Run all main fetch operations in parallel
+        const [
+          articleSnapshot,
+          tagsSnapshot,
+          highlightsSnapshot,
+          notesSnapshot,
+          marginNotesSnapshot,
+        ] = await Promise.all([
+          getDoc(doc(db, "articles", id)),
+          getDocs(collection(db, "tags")),
+          getDocs(query(collection(db, "highlights"), where("articleId", "==", id))),
+          getDocs(query(collection(db, "notes"), where("articleId", "==", id))),
+          getDocs(query(collection(db, "marginNotes"), where("articleId", "==", id))),
+        ]);
 
-        if (articleSnapshot.exists()) {
-          const articleData = articleSnapshot.data();
-          articleData.id = articleSnapshot.id;
-          setArticle(articleData);
-          setTitle(articleData.title || "");
-          setTags(
-            Array.isArray(articleData.tags) ? articleData.tags.join(", ") : "",
-          );
-          setStatus(articleData.status || "");
-          setArchived(articleData.archived || false);
-          setNotes(articleData.note || "");
-          setCreatedAt(articleData.date);
-          setIsPublic(articleData.public || false);
-          setAutoTagSuggestions(articleData.autoTags || []);
-          setCanEdit(currentUser && articleData.userid === currentUser.uid);
-          setFolderId(articleData.folderId);
-          setFolderName(articleData.folderName);
-
-          // Fetch related articles after loading the main article
-          fetchRelatedArticles(articleData);
-        } else {
+        if (!articleSnapshot.exists()) {
           setError("Article not found.");
+          setLoading(false);
+          return;
         }
+
+        const articleData = articleSnapshot.data();
+        articleData.id = articleSnapshot.id;
+
+        // Process article data
+        setArticle(articleData);
+        setTitle(articleData.title || "");
+        setTags(Array.isArray(articleData.tags) ? articleData.tags.join(", ") : "");
+        setStatus(articleData.status || "");
+        setArchived(articleData.archived || false);
+        setIsPublic(articleData.public || false);
+        setAutoTagSuggestions(articleData.autoTags || []);
+        setCanEdit(currentUser && articleData.userid === currentUser.uid);
+        setFolderId(articleData.folderId);
+        setFolderName(articleData.folderName);
+
+        // Process tags
+        const tagsData = tagsSnapshot.docs.map((doc) => doc.data().name);
+        setTagSuggestions(tagsData);
+
+        // Process highlights asynchronously
+        Promise.resolve().then(() => {
+          const highlightsData = highlightsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setHighlights(highlightsData);
+          setHighlightsLoading(false);
+        });
+
+        // Process notes asynchronously
+        Promise.resolve().then(() => {
+          const notesData = notesSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          // Combine all note contents if there are any
+          const combinedNotes = notesData.length > 0
+            ? notesData.map(note => note.content || '').join('\n\n')
+            : articleData.note || '';
+          setNotes(combinedNotes);
+          setNotesLoading(false);
+        });
+
+        // Process margin notes asynchronously
+        Promise.resolve().then(() => {
+          const marginNotesData = marginNotesSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setMarginNotes(marginNotesData);
+          setMarginNotesLoading(false);
+        });
+
+        // Fetch related articles asynchronously
+        fetchRelatedArticles(articleData);
+
       } catch (err) {
         console.error("Error fetching article:", err);
         setError("Failed to load article.");
       } finally {
-      }
-    };
-    const fetchTags = async () => {
-      try {
-        const tagsSnapshot = await getDocs(collection(db, "tags"));
-        const tagsData = tagsSnapshot.docs.map((doc) => doc.data().name);
-        setTagSuggestions(tagsData);
-      } catch (err) {
-        console.error("Error fetching tags:", err);
+        setLoading(false);
       }
     };
 
@@ -115,32 +183,29 @@ function ArticleDetail() {
         }));
 
         const filteredArticles = allArticles.filter((article) => {
-          return (
-            article.public ||
-            (currentUser && article.userid === currentUser.uid)
-          );
+          return article.public || (currentUser && article.userid === currentUser.uid);
         });
 
         const [similarityScores, related] = findRelatedArticles(
           currentArticle,
           filteredArticles,
-          5,
+          5
         );
+
         setRelatedArticles(
           related.map((article, index) => ({
             ...article,
             similarity: similarityScores[index],
-          })),
+          }))
         );
       } catch (err) {
         console.error("Error fetching related articles:", err);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchTags();
-    fetchArticle();
+    if (currentUser) {
+      fetchData();
+    }
   }, [id, currentUser]);
 
   const saveNotes = async (noteText) => {
@@ -181,7 +246,7 @@ function ArticleDetail() {
         archived: archived,
         lastModified: new Date(),
         folderId: folderId || null,
-        folderName: folderName || null
+        folderName: folderName || null,
       };
 
       await updateDoc(articleRef, updateData);
@@ -230,8 +295,9 @@ function ArticleDetail() {
     setSaving(true);
     saveNotes(notes);
   }, 1000); // Save notes with a 1-second debounce delay
+
   if (loading) {
-    return <Loading loading="Loading ..." />;
+    return <Loading loading="Loading article..." />;
   }
 
   if (error) {
@@ -240,6 +306,13 @@ function ArticleDetail() {
         <ErrorComponent error={error} />
       </div>
     );
+  }
+
+  // Only render the entire UI when all components are loaded
+  const allComponentsLoaded = !notesLoading && !highlightsLoading && !marginNotesLoading;
+  
+  if (!allComponentsLoaded) {
+    return <Loading loading="Loading components..." />;
   }
 
   return (
@@ -255,33 +328,37 @@ function ArticleDetail() {
           <div className="container mx-auto px-4 py-6 relative">
             <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-grow">
+                {/* Only show tabs when all related data is loaded */}
+                <TabBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
                 <div className="bg-white rounded-lg shadow-sm">
-                  <TabBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
                   <div className="p-4">
                     {activeTab === "content" && (
-                      <ContentSection
-                        article={article}
-                        title={title}
-                        setTitle={setTitle}
-                        notes={notes}
-                        setNotes={setNotes}
-                        editing={editing}
-                        setEditing={setEditing}
-                        status={status}
-                        setStatus={setStatus}
-                        tags={tags}
-                        setTags={setTags}
-                        createdAt={createdAt}
-                        showSummary={showSummary}
-                        setShowSummary={setShowSummary}
-                        relatedArticles={relatedArticles}
-                        canEdit={canEdit}
-                        isPublic={isPublic}
-                        setIsPublic={setIsPublic}
-                        tagSuggestions={tagSuggestions}
-                        setTagSuggestions={setTagSuggestions}
-                        saving={saving}
-                      />
+                      <>
+                        <ContentSection
+                          article={article}
+                          title={title}
+                          setTitle={setTitle}
+                          notes={notes}
+                          setNotes={setNotes}
+                          editing={editing}
+                          setEditing={setEditing}
+                          status={status}
+                          setStatus={setStatus}
+                          tags={tags}
+                          setTags={setTags}
+                          createdAt={createdAt}
+                          showSummary={showSummary}
+                          setShowSummary={setShowSummary}
+                          relatedArticles={relatedArticles}
+                          canEdit={canEdit}
+                          isPublic={isPublic}
+                          setIsPublic={setIsPublic}
+                          tagSuggestions={tagSuggestions}
+                          setTagSuggestions={setTagSuggestions}
+                          saving={saving}
+                        />
+                        <ScrollButton />
+                      </>
                     )}
                     {activeTab === "summary" && (
                       <SummaryTab
@@ -291,7 +368,7 @@ function ArticleDetail() {
                         createdAt={createdAt}
                       />
                     )}
-                    {activeTab === "notes" && (
+                    {activeTab === "notes" && !notesLoading && (
                       <div className="p-4">
                         <NotesEditor
                           notes={notes}
@@ -317,7 +394,8 @@ function ArticleDetail() {
                   </div>
                 </div>
               </div>
-              {showSidebar && (
+              {/* Only show sidebar when margin notes are loaded */}
+              {showSidebar && !marginNotesLoading && (
                 <div className="w-96 sticky top-16">
                   <Sidebar
                     article={article}
@@ -348,7 +426,6 @@ function ArticleDetail() {
           </div>
         </div>
       </ActiveReadingProvider>
-      <ScrollButton />
     </div>
   );
 }

@@ -12,7 +12,27 @@ import {
   where,
   arrayUnion,
   arrayRemove,
+  orderBy
 } from "firebase/firestore";
+
+// Add caching mechanism
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getCachedData = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCachedData = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
 
 export async function addArticle(articleData) {
   try {
@@ -22,6 +42,13 @@ export async function addArticle(articleData) {
       date: serverTimestamp(), // Set timestamp to the current time
     };
     const docRef = await addDoc(articlesCollectionRef, newArticle);
+    
+    // Invalidate relevant caches
+    invalidateCache('user-articles');
+    if (articleData.folderId) {
+      invalidateCache(`folder-articles-${articleData.folderId}`);
+    }
+    
     console.log("Article added successfully with ID:", docRef.id);
     return { id: docRef.id };
   } catch (error) {
@@ -150,33 +177,34 @@ export const deleteFolder = async (folderId) => {
     const articles = folderData.articles || [];
     const subfolders = folderData.subfolders || [];
 
-    // Recursively delete subfolders
-    const subfolderPromises = subfolders.map(subfolderId => deleteFolder(subfolderId));
-    await Promise.all(subfolderPromises);
-
-    // Update article references
-    const articleUpdates = articles.map(articleId => {
-      const articleRef = doc(db, "articles", articleId);
-      return updateDoc(articleRef, {
-        folderId: "",
-        folderName: ""
-      });
-    });
-
-    // Delete the folder itself
+    // Execute all operations in parallel
     await Promise.all([
-      ...articleUpdates,
+      // Recursively delete subfolders
+      ...subfolders.map(subfolderId => deleteFolder(subfolderId)),
+      
+      // Update article references
+      ...articles.map(articleId => 
+        updateDoc(doc(db, "articles", articleId), {
+          folderId: "",
+          folderName: ""
+        })
+      ),
+      
+      // Update parent folder if exists
+      folderData.parentId ? 
+        updateDoc(doc(db, "folders", folderData.parentId), {
+          subfolders: arrayRemove(folderId),
+          updatedAt: serverTimestamp()
+        }) : Promise.resolve(),
+      
+      // Delete the folder itself
       deleteDoc(folderRef)
     ]);
 
-    // If this folder has a parent, update the parent's subfolders array
-    if (folderData.parentId) {
-      const parentRef = doc(db, "folders", folderData.parentId);
-      await updateDoc(parentRef, {
-        subfolders: arrayRemove(folderId),
-        updatedAt: serverTimestamp()
-      });
-    }
+    // Invalidate relevant caches
+    invalidateCache('user-folders');
+    invalidateCache(`folder-articles-${folderId}`);
+    
   } catch (error) {
     console.error("Error deleting folder: ", error);
     throw new Error("Failed to delete folder: " + error.message);
@@ -185,34 +213,44 @@ export const deleteFolder = async (folderId) => {
 
 // Get folders for a specific user with nested structure
 export const fetchUserFolders = async (userId) => {
+  if (!userId) return [];
+
+  const cacheKey = `user-folders-${userId}`;
+  const cached = getCachedData(cacheKey);
+  if (cached) return cached;
+
   try {
     const folderQuery = query(
       collection(db, "folders"),
-      where("userid", "==", userId)
+      where("userid", "==", userId),
+      orderBy("updatedAt", "desc")
     );
+    
     const folderSnapshot = await getDocs(folderQuery);
     
     // Create a map of all folders
     const folderMap = new Map();
     folderSnapshot.docs.forEach(doc => {
-      const folderData = { id: doc.id, ...doc.data() };
+      const folderData = { 
+        id: doc.id, 
+        ...doc.data(),
+        lastModified: doc.data().updatedAt?.toDate().toLocaleDateString()
+      };
       folderMap.set(doc.id, { ...folderData, children: [] });
     });
 
-
-    // Organize into tree structure
+    // Organize into tree structure in a single pass
     const rootFolders = [];
     folderMap.forEach(folder => {
       if (folder.parentId && folderMap.has(folder.parentId)) {
         const parent = folderMap.get(folder.parentId);
-        if (parent) {
-          parent.children.push(folder);
-        }
+        parent.children.push(folder);
       } else {
         rootFolders.push(folder);
       }
     });
 
+    setCachedData(cacheKey, rootFolders);
     return rootFolders;
   } catch (error) {
     console.error("Error fetching folders: ", error);
@@ -264,18 +302,41 @@ export const updateFolderWithArticle = async (folderId, articleId, remove = fals
 };
 
 export const fetchArticlesInFolder = async (folderId) => {
+  if (!folderId) return [];
+  
+  const cacheKey = `folder-articles-${folderId}`;
+  const cached = getCachedData(cacheKey);
+  if (cached) return cached;
+
   try {
+    const folderRef = doc(db, "folders", folderId);
+    const folderDoc = await getDoc(folderRef);
+    
+    if (!folderDoc.exists()) {
+      console.error("Folder not found:", folderId);
+      return [];
+    }
+
     const articlesRef = collection(db, "articles");
-    const q = query(articlesRef, where("folderId", "==", folderId));
+    const q = query(
+      articlesRef, 
+      where("folderId", "==", folderId),
+      orderBy("date", "desc")
+    );
+    
     const querySnapshot = await getDocs(q);
     const articles = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
+      dateFormatted: doc.data().date?.toDate().toLocaleDateString()
     }));
+
+    setCachedData(cacheKey, articles);
     return articles;
   } catch (error) {
-    console.error("Error fetching articles in folder: ", error);
-    throw new Error("Failed to fetch articles in folder.");
+    console.error("Error fetching articles in folder:", error);
+    // Return empty array instead of throwing to handle error gracefully
+    return [];
   }
 };
 
@@ -369,6 +430,12 @@ export const fetchAllArticles = async () => {
 
 // Find articles that contain links to the specified article
 export const findBacklinks = async (articleId) => {
+  if (!articleId) return [];
+
+  const cacheKey = `backlinks-${articleId}`;
+  const cached = getCachedData(cacheKey);
+  if (cached) return cached;
+
   try {
     const articlesRef = collection(db, "articles");
     const querySnapshot = await getDocs(articlesRef);
@@ -380,19 +447,58 @@ export const findBacklinks = async (articleId) => {
       if (doc.id === articleId) return;
       
       // Check if note contains a link to the target article
-      // We use article.note (singular) as that's how it's stored in the database
-      if (article.note && article.note.includes(`@article:${articleId}`)) {
+      if (article.note?.includes(`@article:${articleId}`)) {
         backlinks.push({
           id: doc.id,
           title: article.title,
-          ...article
+          ...article,
+          dateFormatted: article.date?.toDate().toLocaleDateString()
         });
       }
     });
     
+    setCachedData(cacheKey, backlinks);
     return backlinks;
   } catch (error) {
     console.error("Error finding backlinks:", error);
     throw error;
+  }
+};
+
+export const fetchUserArticles = async (currentUser) => {
+  if (!currentUser) return [];
+
+  const cacheKey = `user-articles-${currentUser.uid}`;
+  const cached = getCachedData(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const articlesQuery = query(
+      collection(db, "articles"),
+      where("userid", "==", currentUser.uid),
+      orderBy("date", "desc")
+    );
+    
+    const articlesSnapshot = await getDocs(articlesQuery);
+    const articlesData = articlesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      dateFormatted: doc.data().date?.toDate().toLocaleDateString()
+    }));
+
+    setCachedData(cacheKey, articlesData);
+    return articlesData;
+  } catch (error) {
+    console.error("Error fetching articles:", error);
+    return [];
+  }
+};
+
+// Add cache invalidation for write operations
+export const invalidateCache = (pattern) => {
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+    }
   }
 };

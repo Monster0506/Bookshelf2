@@ -21,6 +21,16 @@ function NotesEditor({
   articleId,
   articleTitle
 }) {
+  // Initialize with empty string and ensure proper conversion of notes
+  const [editorValue, setEditorValue] = useState(() => {
+    if (!notes) return '';
+    if (typeof notes === 'string') return notes;
+    if (Array.isArray(notes)) {
+      // Combine notes array into a single string
+      return notes.map(note => note.content || '').join('\n\n');
+    }
+    return '';
+  });
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [showStats, setShowStats] = useState(false);
@@ -40,6 +50,20 @@ function NotesEditor({
     links: 0
   });
   const [outgoingLinks, setOutgoingLinks] = useState([]);
+
+  // Initialize editor value when notes prop changes
+  useEffect(() => {
+    const processNotes = () => {
+      if (!notes) return '';
+      if (typeof notes === 'string') return notes;
+      if (Array.isArray(notes)) {
+        // Combine notes array into a single string
+        return notes.map(note => note.content || '').join('\n\n');
+      }
+      return '';
+    };
+    setEditorValue(processNotes());
+  }, [notes]);
 
   // Fetch articles on component mount
   useEffect(() => {
@@ -76,13 +100,14 @@ function NotesEditor({
   // Calculate detailed stats
   useEffect(() => {
     const calculateStats = () => {
-      const words = notes.trim().split(/\s+/).filter(word => word.length > 0);
-      const chars = notes.length;
-      const paragraphs = notes.split(/\n\s*\n/).filter(para => para.trim().length > 0);
-      const sentences = notes.split(/[.!?]+\s/).filter(sent => sent.trim().length > 0);
-      const lines = notes.split('\n').filter(line => line.trim().length > 0);
-      const headings = (notes.match(/^#{1,6}\s/gm) || []).length;
-      const links = (notes.match(/\[([^\]]+)\]\(([^)]+)\)/g) || []).length;
+      const currentValue = String(editorValue || '');
+      const words = currentValue.trim().split(/\s+/).filter(word => word.length > 0);
+      const chars = currentValue.length;
+      const paragraphs = currentValue.split(/\n\s*\n/).filter(para => para.trim().length > 0);
+      const sentences = currentValue.split(/[.!?]+\s/).filter(sent => sent.trim().length > 0);
+      const lines = currentValue.split('\n').filter(line => line.trim().length > 0);
+      const headings = (currentValue.match(/^#{1,6}\s/gm) || []).length;
+      const links = (currentValue.match(/\[([^\]]+)\]\(([^)]+)\)/g) || []).length;
       
       setWordCount(words.length);
       setCharCount(chars);
@@ -97,28 +122,28 @@ function NotesEditor({
     };
 
     calculateStats();
-  }, [notes]);
+  }, [editorValue]);
 
   // Extract outgoing links from notes
   useEffect(() => {
     const extractLinks = () => {
-      const linkRegex = /\[([^\]]+)\]\(@article:([^)]+)\)/g;
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
       const links = new Set();
       let match;
+      const currentValue = String(editorValue || '');
       
-      while ((match = linkRegex.exec(notes)) !== null) {
+      while ((match = linkRegex.exec(currentValue)) !== null) {
         const [, title, id] = match;
         links.add(id);
       }
       
-      const linkedArticles = articles.filter(a => links.has(a.id));
-      setOutgoingLinks(linkedArticles);
+      setOutgoingLinks(Array.from(links));
     };
-    
+
     if (articles.length > 0) {
       extractLinks();
     }
-  }, [notes, articles]);
+  }, [editorValue, articles]);
 
   // Custom link renderer for internal article links
   const linkRenderer = ({ href, children }) => {
@@ -150,15 +175,17 @@ function NotesEditor({
     );
   };
 
+  // Handle editor change
+  const handleEditorChange = ({ text }) => {
+    setEditorValue(text);
+    setNotes(text); // Always set as string since we save as string in Firestore
+    setHasUnsavedChanges(true);
+    debouncedSaveNotes(text);
+  };
+
   const handleImageUpload = async (file) => {
     // TODO: Implement image upload functionality
     return "https://via.placeholder.com/150";
-  };
-
-  const handleEditorChange = ({ text }) => {
-    setNotes(text); // Update state immediately for UI
-    setHasUnsavedChanges(true); // Mark as unsaved
-    debouncedSaveNotes(text); // Debounced save to Firebase
   };
 
   // Filter articles based on search term
@@ -294,7 +321,7 @@ function NotesEditor({
 
       <MdEditor
         ref={editorRef}
-        value={notes}
+        value={editorValue}
         style={{ height: editorHeight }}
         renderHTML={text => (
           <ReactMarkdown
@@ -302,7 +329,7 @@ function NotesEditor({
             rehypePlugins={[rehypeRaw, rehypeHighlight]}
             components={{ a: linkRenderer }}
           >
-            {text}
+            {text || ''}
           </ReactMarkdown>
         )}
         onChange={handleEditorChange}

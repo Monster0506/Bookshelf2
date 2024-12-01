@@ -11,6 +11,7 @@ import {
   setDoc,
   doc,
   deleteDoc,
+  orderBy,
 } from "firebase/firestore";
 import { FaFilter, FaTh, FaList } from "react-icons/fa";
 import Loading from "../components/Loading";
@@ -65,34 +66,56 @@ function ArticleList() {
       try {
         const articlesCollection = collection(db, "articles");
 
-        // Query for both the logged-in user's articles and public articles
+        // Create compound queries for better performance
         const userArticlesQuery = query(
           articlesCollection,
           where("userid", "==", currentUser.uid),
+          // Add orderBy to optimize the query
+          orderBy("date", "desc")
         );
+
         const publicArticlesQuery = query(
           articlesCollection,
           where("public", "==", true),
+          where("userid", "!=", currentUser.uid),
+          orderBy("userid"),
+          orderBy("date", "desc")
         );
 
-        const [userArticlesSnapshot, publicArticlesSnapshot] =
-          await Promise.all([
-            getDocs(userArticlesQuery),
-            getDocs(publicArticlesQuery),
-          ]);
+        // Use Promise.all for parallel fetching
+        const [userArticlesSnapshot, publicArticlesSnapshot] = await Promise.all([
+          getDocs(userArticlesQuery),
+          getDocs(publicArticlesQuery),
+        ]);
 
-        // Combine user and public articles, avoiding duplicates
-        const articlesData = [
-          ...userArticlesSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
+        // Process snapshots in parallel using Promise.all
+        const [userArticles, publicArticles] = await Promise.all([
+          Promise.all(userArticlesSnapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              // Pre-format date to avoid repeated conversions
+              dateFormatted: data.date?.toDate().toLocaleDateString(),
+              // Pre-calculate other commonly used values
+              wordCount: data.wordCount || 0,
+              readingTime: data.readingTime || "0 min",
+            };
           })),
-          ...publicArticlesSnapshot.docs
-            .filter((doc) => doc.data().userid !== currentUser.uid)
-            .map((doc) => ({ id: doc.id, ...doc.data() })),
-        ];
+          Promise.all(publicArticlesSnapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              dateFormatted: data.date?.toDate().toLocaleDateString(),
+              wordCount: data.wordCount || 0,
+              readingTime: data.readingTime || "0 min",
+            };
+          })),
+        ]);
 
-        articlesData.sort((a, b) => b.date.toDate() - a.date.toDate());
+        // Combine articles and update state
+        const articlesData = [...userArticles, ...publicArticles];
         setArticles(articlesData);
         setFilteredArticles(articlesData);
       } catch (err) {
@@ -108,124 +131,72 @@ function ArticleList() {
     }
   }, [currentUser]);
 
-  // Filtering logic
+  // Optimize filtering logic with useMemo
   useMemo(() => {
-    let filtered = [...articles];
+    // Create a single filtering function for better performance
+    const filterArticle = (article) => {
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        article.title?.toLowerCase().includes(searchLower) ||
+        article.markdown?.toLowerCase().includes(searchLower) ||
+        article.source?.toLowerCase().includes(searchLower);
 
-    // Search by title, content, or URL
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (article) =>
-          article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.markdown.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.source.toLowerCase().includes(searchQuery.toLowerCase()),
+      const matchesStatus = !statusFilter || article.status === statusFilter;
+      const matchesFileType = !fileTypeFilter || article.filetype === fileTypeFilter;
+      const matchesFolder = !folderFilter || article.folderId === folderFilter;
+      const matchesPublic = !publicFilter || article.public === publicFilter;
+      const matchesArchive = archiveFilter ? article.archived : !article.archived;
+      const matchesTag =
+        !tagFilter || (article.tags || []).some((tag) =>
+          tag.toLowerCase() === tagFilter.toLowerCase()
+        );
+
+      // Date range check
+      const articleDate = article.date?.toDate();
+      const matchesDateRange =
+        (!dateRange.from || (articleDate && articleDate >= new Date(dateRange.from))) &&
+        (!dateRange.to || (articleDate && articleDate <= new Date(dateRange.to)));
+
+      // Reading time range check
+      const readingTimeMinutes = parseInt(article.readingTime);
+      const matchesReadingTime =
+        (!readingTimeRange.min || readingTimeMinutes >= parseInt(readingTimeRange.min)) &&
+        (!readingTimeRange.max || readingTimeMinutes <= parseInt(readingTimeRange.max));
+
+      // Word count range check
+      const matchesWordCount =
+        (!wordCountRange.min || article.wordCount >= parseInt(wordCountRange.min)) &&
+        (!wordCountRange.max || article.wordCount <= parseInt(wordCountRange.max));
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesFileType &&
+        matchesFolder &&
+        matchesPublic &&
+        matchesArchive &&
+        matchesTag &&
+        matchesDateRange &&
+        matchesReadingTime &&
+        matchesWordCount
       );
-    }
+    };
 
-    // Filter by status
-    if (statusFilter) {
-      filtered = filtered.filter((article) => article.status === statusFilter);
-    }
-
-    // Filter by file type
-    if (fileTypeFilter) {
-      filtered = filtered.filter(
-        (article) => article.filetype === fileTypeFilter,
-      );
-    }
-
-    // Filter by folder
-    if (folderFilter) {
-      filtered = filtered.filter(
-        (article) => article.folderId === folderFilter
-      );
-    }
-
-    // Filter by public/private
-    if (publicFilter) {
-      filtered = filtered.filter((article) => article.public === publicFilter);
-    }
-
-    // Filter by archive status
-    if (archiveFilter) {
-      filtered = filtered.filter((article) => article.archived);
-    } else {
-      filtered = filtered.filter((article) => !article.archived);
-    }
-
-    // Filter by tags
-    if (tagFilter) {
-      filtered = filtered.filter((article) =>
-        (article.tags || []).some(
-          (tag) => tag.toLowerCase() === tagFilter.toLowerCase(),
-        ),
-      );
-    }
-
-    // Filter by date range
-    if (dateRange.from) {
-      filtered = filtered.filter(
-        (article) => article.date.toDate() >= new Date(dateRange.from)
-      );
-    }
-    if (dateRange.to) {
-      filtered = filtered.filter(
-        (article) => article.date.toDate() <= new Date(dateRange.to)
-      );
-    }
-
-    // Filter by reading time range
-    if (readingTimeRange.min) {
-      filtered = filtered.filter(
-        (article) => parseInt(article.read.minutes) >= parseInt(readingTimeRange.min)
-      );
-    }
-    if (readingTimeRange.max) {
-      filtered = filtered.filter(
-        (article) => parseInt(article.read.minutes) <= parseInt(readingTimeRange.max)
-      );
-    }
-
-    // Filter by word count range
-    if (wordCountRange.min) {
-      filtered = filtered.filter(
-        (article) => parseInt(article.read.words) >= parseInt(wordCountRange.min)
-      );
-    }
-    if (wordCountRange.max) {
-      filtered = filtered.filter(
-        (article) => parseInt(article.read.words) <= parseInt(wordCountRange.max)
-      );
-    }
-
-    // Sorting logic
-    filtered.sort((a, b) => {
-      switch (sortOption) {
-        case "title":
-          return a.title.localeCompare(b.title);
-        case "date":
-          return b.date.toDate() - a.date.toDate();
-        case "readingTime":
-          return parseInt(a.read.minutes) - parseInt(b.read.minutes);
-        default:
-          return b.date.toDate() - a.date.toDate();
-      }
-    });
-
+    const filtered = articles.filter(filterArticle);
     setFilteredArticles(filtered);
   }, [
     articles,
     searchQuery,
     statusFilter,
     fileTypeFilter,
-    tagFilter,
+    folderFilter,
     publicFilter,
     archiveFilter,
-    sortOption,
+    tagFilter,
     dateRange,
     readingTimeRange,
     wordCountRange,
-    folderFilter,
   ]);
 
   const toggleViewMode = () => {
@@ -247,8 +218,8 @@ function ArticleList() {
         prevArticles.map((article) =>
           article.id === articleId
             ? { ...article, status: newStatus }
-            : article,
-        ),
+            : article
+        )
       );
     } catch (error) {
       console.error("Error updating article status:", error);
@@ -277,8 +248,8 @@ function ArticleList() {
           prevArticles.map((article) =>
             article.id === articleId
               ? { ...article, archived: !currentArchived }
-              : article,
-          ),
+              : article
+          )
         );
       } else {
         console.error("Article not found.");
@@ -314,7 +285,7 @@ function ArticleList() {
 
         // Update the local state
         setArticles((prevArticles) =>
-          prevArticles.filter((article) => article.id !== articleId),
+          prevArticles.filter((article) => article.id !== articleId)
         );
       } else {
         console.error("Article not found.");

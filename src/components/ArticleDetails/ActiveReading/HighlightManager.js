@@ -113,31 +113,31 @@ const TTSPopup = ({ isOpen, onClose, settings, onSettingsChange, isSpeaking, isP
   );
 };
 
-const HighlightManager = ({ 
-  activeHighlightColor, 
+const HighlightManager = ({
+  activeHighlightColor,
   setActiveHighlightColor,
   isHighlighting,
   setIsHighlighting,
   onAddNote,
-  onLookupWord
+  onLookupWord,
+  highlightsLoading
 }) => {
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const { isFocusMode, toggleFocusMode } = useActiveReading();
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [showTTSSettings, setShowTTSSettings] = useState(false);
+  const [showTTSPopup, setShowTTSPopup] = useState(false);
   const [ttsSettings, setTTSSettings] = useState({
     voice: '',
     rate: 1,
     pitch: 1
   });
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
+  const { isFocusMode, toggleFocusMode } = useActiveReading();
   
   const speechSynthRef = useRef(window.speechSynthesis);
   const currentUtteranceRef = useRef(null);
 
   const handleColorSelect = useCallback((color) => {
     setActiveHighlightColor(color);
-    setShowColorPicker(false);
     setIsHighlighting(true);
   }, [setActiveHighlightColor, setIsHighlighting]);
 
@@ -170,6 +170,8 @@ const HighlightManager = ({
   }, []);
 
   const handleTTS = useCallback(() => {
+    if (!voicesLoaded) return;
+    
     const selection = window.getSelection();
     const selectedText = selection.toString().trim();
     
@@ -210,7 +212,7 @@ const HighlightManager = ({
       setIsSpeaking(true);
       speechSynthRef.current.speak(utterance);
     }
-  }, [isSpeaking, isPaused, ttsSettings]);
+  }, [isSpeaking, isPaused, ttsSettings, voicesLoaded]);
 
   const stopTTS = useCallback(() => {
     speechSynthRef.current.cancel();
@@ -218,6 +220,46 @@ const HighlightManager = ({
     setIsPaused(false);
     currentUtteranceRef.current = null;
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTTSVoices = async () => {
+      if (typeof speechSynthesis !== 'undefined') {
+        const loadVoices = () => {
+          const voices = speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            if (mounted) {
+              setTTSSettings(prev => ({
+                ...prev,
+                voice: voices[0].name
+              }));
+              setVoicesLoaded(true);
+            }
+            speechSynthesis.onvoiceschanged = null;
+          }
+        };
+
+        if (speechSynthesis.getVoices().length > 0) {
+          loadVoices();
+        } else {
+          speechSynthesis.onvoiceschanged = loadVoices;
+        }
+      }
+    };
+
+    loadTTSVoices();
+    return () => {
+      mounted = false;
+      if (typeof speechSynthesis !== 'undefined') {
+        speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  if (highlightsLoading || !voicesLoaded) {
+    return null;
+  }
 
   return (
     <motion.div 
@@ -228,7 +270,7 @@ const HighlightManager = ({
     >
       <div className="flex items-center space-x-2">
         <button
-          onClick={() => setShowColorPicker(!showColorPicker)}
+          onClick={() => setIsHighlighting(!isHighlighting)}
           className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
             isHighlighting ? `${HIGHLIGHT_COLORS[activeHighlightColor].bg} ${HIGHLIGHT_COLORS[activeHighlightColor].text}` : ''
           }`}
@@ -263,12 +305,12 @@ const HighlightManager = ({
               onClick={handleTTS}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setShowTTSSettings(!showTTSSettings);
+                setShowTTSPopup(!showTTSPopup);
               }}
               onMouseDown={(e) => {
                 if (e.button === 0) { // Left click
                   const timer = setTimeout(() => {
-                    setShowTTSSettings(!showTTSSettings);
+                    setShowTTSPopup(!showTTSPopup);
                   }, 500);
                   e.currentTarget.dataset.longPressTimer = timer;
                 }
@@ -284,15 +326,15 @@ const HighlightManager = ({
                 if (timer) clearTimeout(timer);
               }}
               className={`p-2 rounded-full hover:bg-gray-100 transition-colors
-                         ${isSpeaking || showTTSSettings ? 'text-blue-500 bg-blue-50' : ''}`}
+                         ${isSpeaking || showTTSPopup ? 'text-blue-500 bg-blue-50' : ''}`}
             >
               {isSpeaking ? (isPaused ? <FaPlay /> : <FaPause />) : <FaVolumeUp />}
             </button>
           </Tooltip>
           
           <TTSPopup
-            isOpen={showTTSSettings}
-            onClose={() => setShowTTSSettings(false)}
+            isOpen={showTTSPopup}
+            onClose={() => setShowTTSPopup(false)}
             settings={ttsSettings}
             onSettingsChange={handleTTSSettings}
             isSpeaking={isSpeaking}
@@ -399,7 +441,7 @@ const HighlightManager = ({
         )}
 
         <AnimatePresence>
-          {showColorPicker && (
+          {showTTSPopup && (
             <motion.div 
               className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2"
               initial={{ opacity: 0, scale: 0.9 }}
