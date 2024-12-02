@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { throttle } from 'lodash';
 
 const HeadingDots = ({ contentRef }) => {
   const [headings, setHeadings] = useState([]);
@@ -6,46 +7,198 @@ const HeadingDots = ({ contentRef }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [lineHeight, setLineHeight] = useState(20);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [lastVisibleHeading, setLastVisibleHeading] = useState(null);
+  const [viewportProgress, setViewportProgress] = useState({ top: 0, size: 0 });
   const containerRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const dotsRef = useRef(null);
+  const observerRef = useRef(null);
+  const debugRef = useRef({
+    lastUpdate: Date.now(),
+    updateCount: 0,
+    visibleHeadings: new Set(),
+  });
+
+  // Debug logging function
+  const logDebug = (message, data = {}) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[HeadingDots] ${message}`, {
+        timestamp: new Date().toISOString(),
+        activeHeading,
+        visibleHeadings: Array.from(debugRef.current.visibleHeadings),
+        updateCount: debugRef.current.updateCount,
+        timeSinceLastUpdate: Date.now() - debugRef.current.lastUpdate,
+        ...data
+      });
+    }
+  };
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Initialize headings and set up intersection observer
   useEffect(() => {
-    if (!contentRef.current) return;
+    if (!contentRef.current) {
+      logDebug('Content ref is not available');
+      return;
+    }
 
     // Find all headings and store their info
     const headingElements = contentRef.current.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    const headingsData = Array.from(headingElements).map((heading) => ({
-      id: heading.id,
-      text: heading.textContent,
-      level: parseInt(heading.tagName[1]),
-      element: heading,
-    }));
+    logDebug('Found headings', { count: headingElements.length });
+
+    const headingsData = Array.from(headingElements).map((heading, index) => {
+      const rect = heading.getBoundingClientRect();
+      const data = {
+        id: heading.id || `heading-${index}`,
+        text: heading.textContent,
+        level: parseInt(heading.tagName[1]),
+        element: heading,
+        position: {
+          top: rect.top + window.pageYOffset,
+          height: rect.height,
+        }
+      };
+      logDebug('Processed heading', { id: data.id, text: data.text, level: data.level });
+      return data;
+    });
+
+    // Add IDs to headings that don't have them
+    headingsData.forEach(({ id, element }) => {
+      if (!element.id) {
+        element.id = id;
+        logDebug('Added ID to heading', { id });
+      }
+    });
+
     setHeadings(headingsData);
 
-    // Set up intersection observer for active heading detection
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            // Find the highest visible heading
-            const visibleHeadings = entries
-              .filter((e) => e.isIntersecting)
-              .map((e) => e.target.id);
-            if (visibleHeadings.length > 0) {
-              setActiveHeading(visibleHeadings[0]);
-            }
-          }
-        });
-      },
-      {
-        rootMargin: '-80px 0px -80% 0px', // Adjust margins to better detect current section
-        threshold: [0, 0.5, 1], // Multiple thresholds for better detection
-      }
-    );
+    // Improved intersection observer with better tracking
+    const handleIntersection = (entries) => {
+      debugRef.current.updateCount++;
+      const now = Date.now();
+      const timeSinceLastUpdate = now - debugRef.current.lastUpdate;
+      debugRef.current.lastUpdate = now;
 
-    headingElements.forEach((heading) => observer.observe(heading));
-    return () => observer.disconnect();
+      // Update visible headings set
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          debugRef.current.visibleHeadings.add(entry.target.id);
+        } else {
+          debugRef.current.visibleHeadings.delete(entry.target.id);
+        }
+      });
+
+      // Get all currently visible headings
+      const visibleHeadings = entries
+        .filter(entry => entry.isIntersecting)
+        .map(entry => ({
+          id: entry.target.id,
+          ratio: entry.intersectionRatio,
+          top: entry.boundingClientRect.top,
+        }))
+        .sort((a, b) => {
+          // Prioritize headings closer to the top of the viewport
+          const aDistance = Math.abs(a.top);
+          const bDistance = Math.abs(b.top);
+          if (Math.abs(aDistance - bDistance) < 50) { // If they're within 50px
+            return b.ratio - a.ratio; // Use intersection ratio as tiebreaker
+          }
+          return aDistance - bDistance;
+        });
+
+      if (visibleHeadings.length > 0) {
+        const newActiveHeading = visibleHeadings[0].id;
+        if (newActiveHeading !== activeHeading) {
+          logDebug('Updating active heading', {
+            previous: activeHeading,
+            new: newActiveHeading,
+            visibleCount: visibleHeadings.length,
+            timeSinceLastUpdate,
+          });
+          setActiveHeading(newActiveHeading);
+        }
+      } else {
+        logDebug('No visible headings');
+      }
+    };
+
+    // Create and configure the observer
+    observerRef.current = new IntersectionObserver(handleIntersection, {
+      rootMargin: '-80px 0px -80% 0px',
+      threshold: [0, 0.25, 0.5, 0.75, 1],
+    });
+
+    // Start observing all headings
+    headingElements.forEach(heading => {
+      observerRef.current.observe(heading);
+      logDebug('Started observing heading', { id: heading.id });
+    });
+
+    return () => {
+      if (observerRef.current) {
+        logDebug('Cleaning up observer');
+        observerRef.current.disconnect();
+      }
+    };
   }, [contentRef]);
+
+  // Track the last visible heading for progress line
+  useEffect(() => {
+    const visibleHeadings = headings.filter(heading => {
+      const element = document.getElementById(heading.id);
+      if (!element) return false;
+      
+      const rect = element.getBoundingClientRect();
+      const isVisible = rect.top <= window.innerHeight && rect.bottom >= 0;
+      return isVisible;
+    });
+    
+    if (visibleHeadings.length > 0) {
+      const lastVisible = visibleHeadings[visibleHeadings.length - 1];
+      setLastVisibleHeading(lastVisible.id);
+      logDebug('Last visible heading:', lastVisible.id);
+    }
+  }, [headings, activeHeading]);
+
+  // Track viewport position relative to headings
+  useEffect(() => {
+    const updateViewportProgress = () => {
+      const scrollHeight = document.documentElement.scrollHeight;
+      const viewportHeight = window.innerHeight;
+      const scrollTop = window.scrollY;
+
+      // Calculate the position of the viewport as a percentage of the scrollable area
+      const scrollPercent = (scrollTop / (scrollHeight - viewportHeight)) * 100;
+      
+      // Calculate the size of the indicator based on viewport height relative to total height
+      const indicatorSize = (viewportHeight / scrollHeight) * 100;
+
+      setViewportProgress({
+        top: Math.max(0, Math.min(100 - indicatorSize, scrollPercent)),
+        size: indicatorSize
+      });
+      logDebug('Viewport progress:', { scrollPercent, indicatorSize });
+    };
+
+    window.addEventListener('scroll', updateViewportProgress);
+    window.addEventListener('resize', updateViewportProgress);
+    updateViewportProgress();
+
+    return () => {
+      window.removeEventListener('scroll', updateViewportProgress);
+      window.removeEventListener('resize', updateViewportProgress);
+    };
+  }, []);
 
   // Calculate heading styles based on active heading
   const getHeadingStyles = useMemo(() => {
@@ -78,47 +231,74 @@ const HeadingDots = ({ contentRef }) => {
     }, {});
   }, [activeHeading, headings]);
 
-  // Calculate available space and adjust line height
+  // Calculate available space and adjust container height
   useEffect(() => {
     const calculateHeights = () => {
       if (!containerRef.current || headings.length === 0) return;
 
-      const topOffset = 120; // Top position of our container
-      const bottomPadding = 150; // Bottom padding
-      const dotContainerHeight = headings.length <= 5 ? 24 : 16; // Height of dot container
-      const windowHeight = window.innerHeight;
-      const availableHeight = windowHeight - topOffset - bottomPadding;
+      // Get viewport height and important elements
+      const viewportHeight = window.innerHeight;
+      const headerHeight = 80; // Fixed header height
+      const scrollButtonHeight = 40; // Height of scroll button component
+      const topOffset = 120; // Space from top of viewport
+      const bottomOffset = 20; // Extra padding at bottom
       
-      // Set container height to exactly fill available space
+      // Calculate available height
+      const availableHeight = viewportHeight - headerHeight - scrollButtonHeight - topOffset - bottomOffset;
+      
+      logDebug('Height calculations', {
+        viewportHeight,
+        headerHeight,
+        scrollButtonHeight,
+        topOffset,
+        bottomOffset,
+        availableHeight
+      });
+
       setContainerHeight(availableHeight);
-      
-      // Calculate line height to evenly distribute dots, accounting for dot containers
-      const totalGapSpace = availableHeight - (dotContainerHeight * headings.length);
-      const calculatedLineHeight = Math.floor(totalGapSpace / (headings.length - 1));
-      
-      // Use larger spacing for fewer headings, but ensure it fits
-      const baseLineHeight = headings.length <= 5 ? Math.min(80, calculatedLineHeight) : calculatedLineHeight;
-      setLineHeight(Math.max(16, baseLineHeight)); // Ensure minimum spacing
     };
 
+    // Calculate on mount and window resize
     calculateHeights();
     window.addEventListener('resize', calculateHeights);
     return () => window.removeEventListener('resize', calculateHeights);
   }, [headings.length]);
 
-  const scrollToHeading = (id) => {
+  // Improved smooth scroll with better positioning
+  const scrollToHeading = useCallback((id) => {
+    logDebug('Scrolling to heading', { id });
     const element = document.getElementById(id);
-    if (element) {
-      const offset = 80; // Offset to account for fixed header
+    if (!element) {
+      logDebug('Target heading not found', { id });
+      return;
+    }
+
+    try {
+      const header = document.querySelector('header');
+      const headerHeight = header ? header.offsetHeight : 0;
+      const offset = headerHeight + 24; // Additional padding
+      
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
-      
+
+      logDebug('Scroll calculations', {
+        headerHeight,
+        elementPosition,
+        offsetPosition,
+        windowHeight: window.innerHeight,
+      });
+
       window.scrollTo({
         top: offsetPosition,
         behavior: 'smooth'
       });
+
+      // Update active heading immediately for better UX
+      setActiveHeading(id);
+    } catch (error) {
+      logDebug('Error scrolling to heading', { error: error.message });
     }
-  };
+  }, []);
 
   const getSubsectionHeight = (startIndex, currentLevel) => {
     let height = 0;
@@ -129,159 +309,157 @@ const HeadingDots = ({ contentRef }) => {
     return height;
   };
 
+  // Sync scrolling between sidebar and dots
+  const handleScroll = useCallback((event) => {
+    const newScrollTop = event.target.scrollTop;
+    setScrollTop(newScrollTop);
+    
+    // Sync the other container's scroll position
+    if (event.target === sidebarRef.current && dotsRef.current) {
+      dotsRef.current.scrollTop = newScrollTop;
+    } else if (event.target === dotsRef.current && sidebarRef.current) {
+      sidebarRef.current.scrollTop = newScrollTop;
+    }
+  }, []);
+
   if (headings.length === 0) return null;
 
   return (
-    <div 
+    <nav 
       ref={containerRef}
-      className="fixed right-[calc(50%-45rem)] top-[120px] flex group"
+      className="fixed right-[calc(50%-45rem)] top-[120px] flex group z-50"
       style={{
         height: `${containerHeight}px`,
-        overflow: 'hidden'
       }}
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+      onMouseEnter={() => {
+        setIsExpanded(true);
+        logDebug('Navigation expanded');
+      }}
+      onMouseLeave={() => {
+        setIsExpanded(false);
+        logDebug('Navigation collapsed');
+      }}
+      aria-label="Table of contents"
     >
       {/* Expanded sidebar */}
       <div 
-        className={`bg-white/95 backdrop-blur-sm shadow-lg rounded-xl mr-4 py-4 px-3 transition-all duration-300 
-                   border border-gray-100 overflow-hidden ${
+        className={`bg-white/95 backdrop-blur-sm shadow-lg rounded-xl mr-4 transition-all duration-300 
+                   border border-gray-100 ${
           isExpanded ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-4'
         }`}
+        style={{ height: `${containerHeight}px` }}
       >
-        <div className="space-y-2 relative" style={{ height: `${containerHeight - 32}px`, overflowY: 'auto' }}>
-          {headings.map((heading, index) => {
-            const styles = getHeadingStyles[heading.id];
-            const isActive = heading.id === activeHeading;
-            const fontSize = Math.max(0.875, 1.1 - (heading.level - 1) * 0.1);
-            const indentLevel = (heading.level - 1) * 0.75;
+        <div 
+          ref={sidebarRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300 px-3"
+        >
+          <div className="space-y-1 py-2">
+            {headings.map((heading, index) => {
+              const styles = getHeadingStyles[heading.id];
+              const isActive = heading.id === activeHeading;
+              const fontSize = Math.max(0.875, 1.1 - (heading.level - 1) * 0.1);
+              const indentLevel = (heading.level - 1) * 0.75;
 
-            // Calculate if this heading starts a new section at its level
-            const nextHeading = headings[index + 1];
-            const prevHeading = headings[index - 1];
-            const isStartOfSection = !prevHeading || prevHeading.level >= heading.level;
-            const isEndOfSection = !nextHeading || nextHeading.level >= heading.level;
-            const hasChildren = nextHeading && nextHeading.level > heading.level;
-            
-            return (
-              <div key={heading.id} className="relative">
-                {/* Bracket lines */}
-                {isStartOfSection && hasChildren && (
-                  <div 
-                    className="absolute left-0 border-l-2 border-gray-200 transition-all duration-300 rounded-bl"
-                    style={{ 
-                      top: '1.25rem',
-                      left: `${indentLevel + 0.25}rem`,
-                      height: `${getSubsectionHeight(index, heading.level)}px`,
-                      borderBottomLeftRadius: '0.375rem',
-                      borderColor: isActive ? 'rgb(59 130 246 / 0.3)' : 'rgb(229 231 235 / 0.5)'
-                    }}
-                  />
-                )}
+              return (
                 <button
+                  key={heading.id}
                   onClick={() => scrollToHeading(heading.id)}
-                  className={`w-full text-left transition-all duration-300 hover:text-blue-500 rounded-lg
-                            ${isActive ? 'text-blue-500 font-medium bg-blue-50/50' : 'text-gray-600'}
-                            ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+                  className={`w-full text-left transition-all duration-300 hover:text-indigo-500 rounded-lg px-3
+                            flex items-center min-h-[2rem] ${isActive ? 'text-indigo-500 font-medium bg-indigo-50/50' : 'text-gray-600'}`}
                   style={{
-                    paddingLeft: `${indentLevel}rem`,
-                    paddingRight: '0.75rem',
-                    paddingTop: '0.375rem',
-                    paddingBottom: '0.375rem',
-                    opacity: styles.opacity,
+                    paddingLeft: `${indentLevel + 0.75}rem`,
                     fontSize: `${fontSize}rem`,
-                    transform: isActive ? 'translateX(4px)' : 'none'
+                    transform: isActive ? 'translateX(4px)' : 'none',
+                    opacity: styles?.opacity || 1
                   }}
                 >
                   {heading.text}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Dots navigation */}
+      <div 
+        ref={dotsRef}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto scrollbar-none py-2 relative"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {/* Background line */}
+        <div 
+          className="absolute left-1/2 top-0 bottom-0 w-1.5 bg-slate-300 -translate-x-1/2 rounded-full"
+          style={{ 
+            marginTop: '1rem',
+            marginBottom: '1rem',
+          }}
+        />
+
+        {/* Progress line */}
+        <div 
+          className="absolute left-1/2 w-1.5 bg-indigo-600 -translate-x-1/2 transition-all duration-300 rounded-full"
+          style={{ 
+            marginTop: '1rem',
+            top: `${viewportProgress.top}%`,
+            height: `${viewportProgress.size}%`,
+          }}
+        />
+        
+        <div className="space-y-1 relative">
+          {headings.map((heading, index) => {
+            const styles = getHeadingStyles[heading.id];
+            const isActive = heading.id === activeHeading;
+            
+            // Base sizes for dots based on heading level
+            const dotSize = {
+              1: 'w-3 h-3',
+              2: 'w-2.5 h-2.5',
+              3: 'w-2 h-2',
+              4: 'w-1.5 h-1.5',
+              5: 'w-1.5 h-1.5',
+              6: 'w-1.5 h-1.5'
+            }[heading.level] || 'w-2 h-2';
+
+            return (
+              <div key={heading.id} className="relative group/dot min-h-[2rem] flex items-center justify-center">
+                <button
+                  onClick={() => scrollToHeading(heading.id)}
+                  className={`relative flex items-center justify-center w-8 h-8 transition-all duration-300
+                            hover:scale-110 ${isActive ? 'scale-110' : ''}`}
+                  title={heading.text}
+                >
+                  {/* Active indicator ring */}
+                  {isActive && (
+                    <div 
+                      className="absolute inset-0 rounded-full bg-indigo-100/50 animate-ping"
+                      style={{ 
+                        transform: 'scale(0.65)',
+                        opacity: 0.8
+                      }}
+                    />
+                  )}
+                  {/* Dot */}
+                  <div 
+                    className={`${dotSize} rounded-full transition-all duration-300 z-10 relative
+                      ${isActive 
+                        ? 'bg-indigo-500 ring-4 ring-indigo-100' 
+                        : 'bg-slate-400 group-hover/dot:bg-indigo-400 group-hover/dot:ring-2 group-hover/dot:ring-indigo-100'
+                      }`}
+                    style={{
+                      transform: `scale(${styles?.scale || 1})`,
+                      opacity: styles?.opacity || 0.85
+                    }}
+                  />
                 </button>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* Dots navigation */}
-      <div className="flex flex-col items-start relative" style={{ height: `${containerHeight}px` }}>
-        {headings.map((heading, index) => {
-          const styles = getHeadingStyles[heading.id];
-          const indentLevel = (heading.level - 1) * 12;
-          const isActive = heading.id === activeHeading;
-          
-          // Base sizes are larger, vary by heading level
-          const dotSizes = {
-            1: 'w-4 h-4',
-            2: 'w-3.5 h-3.5',
-            3: 'w-3 h-3',
-            4: 'w-2.5 h-2.5',
-            5: 'w-2 h-2',
-            6: 'w-1.5 h-1.5'
-          }[heading.level] || 'w-3 h-3';
-          
-          const containerSizes = {
-            1: 'w-8 h-8',
-            2: 'w-7 h-7',
-            3: 'w-6 h-6',
-            4: 'w-5 h-5',
-            5: 'w-4 h-4',
-            6: 'w-3 h-3'
-          }[heading.level] || 'w-6 h-6';
-          
-          return (
-            <div key={heading.id} className="flex flex-col items-center w-full">
-              <div className="flex items-center w-full">
-                <div style={{ width: `${indentLevel}px` }} />
-                <div className="flex-1 flex flex-col items-center">
-                  <button
-                    onClick={() => scrollToHeading(heading.id)}
-                    className={`group/dot relative ${containerSizes} flex items-center justify-center
-                              transition-all duration-300 ${isActive ? 'scale-110' : 'hover:scale-105'}`}
-                    title={heading.text}
-                  >
-                    {/* Outer ring */}
-                    {isActive && (
-                      <div 
-                        className={`absolute ${dotSizes} rounded-full bg-blue-100/50 animate-ping`}
-                        style={{ 
-                          transform: `scale(1.6)`,
-                          opacity: 0.3
-                        }}
-                      />
-                    )}
-                    {/* Inner dot */}
-                    <div 
-                      className={`${dotSizes} rounded-full transition-all duration-300
-                        ${isActive 
-                          ? 'bg-blue-500 ring-4 ring-blue-100' 
-                          : 'bg-gray-300 hover:bg-gray-400 hover:ring-2 hover:ring-gray-200'
-                        }`}
-                      style={{
-                        transform: `scale(${styles.scale})`,
-                        opacity: styles.opacity
-                      }}
-                    />
-                  </button>
-                  {/* Connecting line */}
-                  {index < headings.length - 1 && (
-                    <div 
-                      className={`w-[2px] transition-all duration-300`}
-                      style={{
-                        height: `${lineHeight - (heading.level <= 2 ? 32 : 24)}px`,
-                        opacity: (styles.opacity + getHeadingStyles[headings[index + 1].id].opacity) / 2,
-                        marginLeft: (headings[index + 1].level - heading.level) * 12 / 2,
-                        background: isActive 
-                          ? 'linear-gradient(180deg, rgb(59 130 246 / 0.3), rgb(209 213 219 / 0.2))'
-                          : 'linear-gradient(180deg, rgb(209 213 219 / 0.5), rgb(209 213 219 / 0.2))'
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    </nav>
   );
 };
 
