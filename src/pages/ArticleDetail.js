@@ -365,6 +365,8 @@ function ArticleDetail() {
                         article={article}
                         status={status}
                         tags={tags}
+                        setTags={setTags}
+                        saveMetadata={saveMetadata}
                         createdAt={createdAt}
                       />
                     )}

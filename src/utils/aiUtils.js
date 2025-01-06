@@ -295,3 +295,37 @@ export async function generateConceptQuestions(text) {
     return null;
   }
 }
+
+/**
+ * Recommends tags for an article based on its content
+ * @param {string} text - The article content
+ * @param {Array<string>} availableTags - List of available tags to choose from
+ * @returns {Promise<Array<string>>} - Array of recommended tags
+ */
+export async function recommendTags(text, availableTags) {
+    const prompt = `<INST>You are an expert at analyzing text content and categorizing it. 
+Given the following text and a list of available tags, determine which tags best describe the content.
+Only select tags that strongly match the content with high confidence. 
+Return your response as a JSON array containing ONLY the tag names that best fit.
+Also, if applicable, provide ONE new tag that could fit the content. This should be a category, not a specific.
+Example response format:  ["tag1", "tag2", "tag3", "new_tag"]
+
+Do not provide any other text, just the JSON response with existing and new fields.
+
+Available tags: ${JSON.stringify(availableTags)}
+
+Analyze this text and select the most relevant tags:</INST>`;
+
+    try {
+        const response = await callHuggingFaceAPI(HUGGING_FACE_API_URL, prompt, text);
+        const tags = safeJSONParse(response[0].generated_text, 'tag recommendation');
+        
+        // Ensure we only return tags that exist in availableTags
+        return Array.isArray(tags) 
+            ? tags
+            : [];
+    } catch (error) {
+        console.error('Error recommending tags:', error);
+        return [];
+    }
+}

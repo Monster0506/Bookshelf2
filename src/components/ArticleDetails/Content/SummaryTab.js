@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { extractInsightsWithAI, generateAISummary, generateConceptQuestions } from '../../../utils/aiUtils';
+import { extractInsightsWithAI, generateAISummary, generateConceptQuestions, recommendTags } from '../../../utils/aiUtils';
 import { extractKeyTakeaways } from '../../../utils/keyTakeaways';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Tooltip from '../../common/Tooltip';
-import { 
-  faSync, faRobot, faBook, faChevronDown, faChevronUp, 
-  faFileAlt, faLightbulb, faMagic, faBrain, faQuestion, faPuzzlePiece 
+import {
+    faSync, faRobot, faBook, faChevronDown, faChevronUp,
+    faFileAlt, faLightbulb, faMagic, faBrain, faQuestion, faPuzzlePiece
 } from '@fortawesome/free-solid-svg-icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../../firebaseConfig';
 
 const CATEGORY_ICONS = {
     'Summary': faFileAlt,
@@ -31,7 +33,7 @@ const CATEGORY_DESCRIPTIONS = {
     'Concepts': 'Key concepts and deep questions related to the content'
 };
 
-const SummaryTab = ({ article }) => {
+const SummaryTab = ({ article, status, tags, setTags, saveMetadata, createdAt, handleMetadataChange }) => {
     const [takeaways, setTakeaways] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -41,6 +43,8 @@ const SummaryTab = ({ article }) => {
     const [aiSummary, setAiSummary] = useState('');
     const [conceptsLoading, setConceptsLoading] = useState(false);
     const [summaryLoading, setSummaryLoading] = useState(false);
+    const [recommendedTags, setRecommendedTags] = useState([]);
+    const [tagsLoading, setTagsLoading] = useState(false);
 
     const toggleSection = (category) => {
         setCollapsedSections((prev) => ({
@@ -55,12 +59,13 @@ const SummaryTab = ({ article }) => {
         if (!useAI) {
             setConceptQuestions([]);
             setAiSummary('');
+            setRecommendedTags([]);
         }
     };
 
     const generateConcepts = async () => {
         if (!article?.plaintext || !useAI) return;
-        
+
         setConceptsLoading(true);
         try {
             const questions = await generateConceptQuestions(article.plaintext);
@@ -87,6 +92,88 @@ const SummaryTab = ({ article }) => {
         }
     };
 
+    const generateRuleBasedTags = (text, availableTags) => {
+        if (!text || !availableTags?.length) return [];
+
+        // Convert text to lowercase for case-insensitive matching
+        const lowerText = text.toLowerCase();
+        const words = lowerText.split(/\W+/).filter(word => word.length > 3);
+
+        // Count word frequencies
+        const wordFrequency = {};
+        words.forEach(word => {
+            wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+        });
+
+        // Define categories and their related terms
+        const categoryTerms = {
+            'technology': ['software', 'hardware', 'programming', 'code', 'computer', 'digital', 'tech', 'algorithm', 'data'],
+            'science': ['research', 'study', 'experiment', 'scientific', 'discovery', 'analysis', 'hypothesis', 'theory'],
+            'business': ['market', 'company', 'startup', 'business', 'entrepreneur', 'finance', 'industry', 'economic'],
+            'health': ['medical', 'health', 'disease', 'treatment', 'patient', 'clinical', 'medicine', 'healthcare'],
+            'education': ['learning', 'education', 'student', 'teaching', 'academic', 'school', 'university', 'training'],
+            'design': ['design', 'interface', 'user', 'experience', 'visual', 'creative', 'aesthetic', 'layout'],
+            'development': ['development', 'engineering', 'implementation', 'architecture', 'system', 'framework', 'platform'],
+            'ai': ['intelligence', 'artificial', 'machine', 'learning', 'neural', 'model', 'prediction', 'automation']
+        };
+
+        // Score each available tag based on term frequency and category matches
+        const tagScores = availableTags.map(tag => {
+            const lowerTag = tag.toLowerCase();
+            let score = 0;
+
+            // Direct word frequency match
+            const tagWords = lowerTag.split(/\W+/);
+            tagWords.forEach(word => {
+                if (wordFrequency[word]) {
+                    score += wordFrequency[word] * 2;
+                }
+            });
+
+            // Category term matches
+            Object.entries(categoryTerms).forEach(([category, terms]) => {
+                if (terms.some(term => lowerText.includes(term))) {
+                    if (lowerTag === category || tagWords.some(word => terms.includes(word))) {
+                        score += 1;
+                    }
+                }
+            });
+
+            return { tag, score };
+        });
+
+        // Sort by score and take top matches
+        return tagScores
+            .filter(({ score }) => score > 0)
+            .filter(({ tag }) => !tags.split(',').map(t => t.trim()).includes(tag))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 5)
+            .map(({ tag }) => tag);
+    };
+
+    const generateRecommendedTags = async () => {
+        if (!article?.plaintext) return;
+
+        setTagsLoading(true);
+        try {
+            // Fetch available tags from Firestore
+            const tagsSnapshot = await getDocs(collection(db, 'tags'));
+            const availableTags = tagsSnapshot.docs.map(doc => doc.data().name);
+
+            // Get tag recommendations based on whether AI is enabled
+            const recommendations = useAI
+                ? await recommendTags(article.plaintext, availableTags)
+                : generateRuleBasedTags(article.plaintext, availableTags)
+
+            setRecommendedTags(recommendations);
+        } catch (error) {
+            console.error('Error generating tag recommendations:', error);
+            setRecommendedTags([]);
+        } finally {
+            setTagsLoading(false);
+        }
+    };
+
     useEffect(() => {
         processTakeaways();
     }, [article?.plaintext, useAI]);
@@ -96,6 +183,7 @@ const SummaryTab = ({ article }) => {
         if (!useAI) {
             setConceptQuestions([]);
             setAiSummary('');
+            generateRecommendedTags(); 
         }
     }, [useAI]);
 
@@ -104,6 +192,12 @@ const SummaryTab = ({ article }) => {
             generateSummary();
         }
     }, [useAI, article?.plaintext]);
+
+    useEffect(() => {
+        if (article?.plaintext) {
+            generateRecommendedTags();
+        }
+    }, [article?.plaintext, useAI]);
 
     const processTakeaways = async () => {
         if (!article?.plaintext) {
@@ -158,8 +252,8 @@ const SummaryTab = ({ article }) => {
                         flex items-center gap-3 px-6 py-3 rounded-xl font-medium text-sm
                         shadow-lg hover:shadow-xl transform transition-all duration-300
                         ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-0.5'}
-                        ${useAI 
-                            ? 'bg-gradient-to-r from-purple-500 to-purple-700 text-white' 
+                        ${useAI
+                            ? 'bg-gradient-to-r from-purple-500 to-purple-700 text-white'
                             : 'bg-gradient-to-r from-blue-500 to-blue-700 text-white'
                         }
                     `}
@@ -236,8 +330,8 @@ const SummaryTab = ({ article }) => {
                                     onClick={() => toggleSection('Summary')}
                                     className={`
                                         w-full p-6 flex justify-between items-center cursor-pointer
-                                        ${useAI 
-                                            ? 'bg-gradient-to-r from-purple-50 to-white' 
+                                        ${useAI
+                                            ? 'bg-gradient-to-r from-purple-50 to-white'
                                             : 'bg-gradient-to-r from-blue-50 to-white'
                                         }
                                     `}
@@ -247,13 +341,13 @@ const SummaryTab = ({ article }) => {
                                             p-3 rounded-lg
                                             ${useAI ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
                                         `}>
-                                            <FontAwesomeIcon 
-                                                icon={CATEGORY_ICONS.Summary} 
+                                            <FontAwesomeIcon
+                                                icon={CATEGORY_ICONS.Summary}
                                                 className="text-xl"
                                             />
                                         </div>
                                         <div className="flex items-center">
-                                            <Tooltip 
+                                            <Tooltip
                                                 title={CATEGORY_DESCRIPTIONS.Summary}
                                                 placement="top"
                                                 arrow
@@ -268,12 +362,12 @@ const SummaryTab = ({ article }) => {
                                         <div className={`
                                             p-2 rounded-full transition-colors duration-200
                                             ${useAI ? 'text-purple-400' : 'text-blue-400'}
-                                            ${useAI 
-                                                ? 'hover:bg-purple-50 hover:text-purple-600' 
+                                            ${useAI
+                                                ? 'hover:bg-purple-50 hover:text-purple-600'
                                                 : 'hover:bg-blue-50 hover:text-blue-600'
                                             }
                                         `}>
-                                            <FontAwesomeIcon 
+                                            <FontAwesomeIcon
                                                 icon={collapsedSections.Summary ? faChevronDown : faChevronUp}
                                                 className={`transform transition-transform duration-200 text-lg
                                                     ${collapsedSections.Summary ? '' : 'rotate-180'}
@@ -340,8 +434,8 @@ const SummaryTab = ({ article }) => {
                                                 onClick={() => toggleSection(category)}
                                                 className={`
                                                     w-full p-6 flex justify-between items-center cursor-pointer
-                                                    ${useAI 
-                                                        ? 'bg-gradient-to-r from-purple-50 to-white' 
+                                                    ${useAI
+                                                        ? 'bg-gradient-to-r from-purple-50 to-white'
                                                         : 'bg-gradient-to-r from-blue-50 to-white'
                                                     }
                                                 `}
@@ -351,13 +445,13 @@ const SummaryTab = ({ article }) => {
                                                         p-3 rounded-lg
                                                         ${useAI ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
                                                     `}>
-                                                        <FontAwesomeIcon 
-                                                            icon={CATEGORY_ICONS[category]} 
+                                                        <FontAwesomeIcon
+                                                            icon={CATEGORY_ICONS[category]}
                                                             className="text-xl"
                                                         />
                                                     </div>
                                                     <div className="flex items-center">
-                                                        <Tooltip 
+                                                        <Tooltip
                                                             title={CATEGORY_DESCRIPTIONS[category]}
                                                             placement="top"
                                                             arrow
@@ -371,12 +465,12 @@ const SummaryTab = ({ article }) => {
                                                 <div className={`
                                                     p-2 rounded-full transition-colors duration-200
                                                     ${useAI ? 'text-purple-400' : 'text-blue-400'}
-                                                    ${useAI 
-                                                        ? 'hover:bg-purple-50 hover:text-purple-600' 
+                                                    ${useAI
+                                                        ? 'hover:bg-purple-50 hover:text-purple-600'
                                                         : 'hover:bg-blue-50 hover:text-blue-600'
                                                     }
                                                 `}>
-                                                    <FontAwesomeIcon 
+                                                    <FontAwesomeIcon
                                                         icon={collapsedSections[category] ? faChevronDown : faChevronUp}
                                                         className={`transform transition-transform duration-200 text-lg
                                                             ${collapsedSections[category] ? '' : 'rotate-180'}
@@ -416,6 +510,37 @@ const SummaryTab = ({ article }) => {
                             </div>
                         )}
 
+                        {/* Recommended Tags Section */}
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-2xl font-semibold">
+                                    {useAI ? "AI Recommended Tags" : "Suggested Tags"}
+                                </h2>
+                                {tagsLoading && (
+                                    <FontAwesomeIcon icon={faSync} spin className="text-gray-500" />
+                                )}
+                            </div>
+                            {recommendedTags.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {recommendedTags.map((tag, index) => (
+                                        <button
+                                            key={index}
+                                            // onClick={() => handleTagClick(tag)}
+                                            className={`px-3 py-1 rounded-full text-sm hover:bg-opacity-80 transition-colors duration-200 cursor-pointer ${useAI
+                                                ? 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                                : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                                                }`}
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {!tagsLoading && recommendedTags.length === 0 && (
+                                <p className="text-gray-500">No tags suggested for this article.</p>
+                            )}
+                        </div>
+
                         {/* Key Concepts Section */}
                         <motion.div
                             key="concepts"
@@ -431,8 +556,8 @@ const SummaryTab = ({ article }) => {
                                 onClick={() => toggleSection('Concepts')}
                                 className={`
                                     w-full p-6 flex justify-between items-center cursor-pointer
-                                    ${useAI 
-                                        ? 'bg-gradient-to-r from-purple-50 to-white' 
+                                    ${useAI
+                                        ? 'bg-gradient-to-r from-purple-50 to-white'
                                         : 'bg-gradient-to-r from-blue-50 to-white'
                                     }
                                 `}
@@ -442,13 +567,13 @@ const SummaryTab = ({ article }) => {
                                         p-3 rounded-lg
                                         ${useAI ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}
                                     `}>
-                                        <FontAwesomeIcon 
-                                            icon={CATEGORY_ICONS.Concepts} 
+                                        <FontAwesomeIcon
+                                            icon={CATEGORY_ICONS.Concepts}
                                             className="text-xl"
                                         />
                                     </div>
                                     <div className="flex items-center">
-                                        <Tooltip 
+                                        <Tooltip
                                             title={CATEGORY_DESCRIPTIONS.Concepts}
                                             placement="top"
                                             arrow
@@ -462,12 +587,12 @@ const SummaryTab = ({ article }) => {
                                 <div className={`
                                     p-2 rounded-full transition-colors duration-200
                                     ${useAI ? 'text-purple-400' : 'text-blue-400'}
-                                    ${useAI 
-                                        ? 'hover:bg-purple-50 hover:text-purple-600' 
+                                    ${useAI
+                                        ? 'hover:bg-purple-50 hover:text-purple-600'
                                         : 'hover:bg-blue-50 hover:text-blue-600'
                                     }
                                 `}>
-                                    <FontAwesomeIcon 
+                                    <FontAwesomeIcon
                                         icon={collapsedSections.Concepts ? faChevronDown : faChevronUp}
                                         className={`transform transition-transform duration-200 text-lg
                                             ${collapsedSections.Concepts ? '' : 'rotate-180'}
