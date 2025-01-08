@@ -3,7 +3,8 @@
  */
 
 // API Configuration
-const HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1";
+const MODEL = "mistralai/Mixtral-8x7B-Instruct-v0.1";
+const HUGGING_FACE_API_URL = `https://api-inference.huggingface.co/models/${MODEL}`;
 
 const API_TOKEN = process.env.REACT_APP_HUGGING_FACE_API_KEY;
 
@@ -46,10 +47,10 @@ const SYSTEM_PROMPTS = {
    }
 
 Now, analyze the following text and generate thought-provoking questions following these guidelines exactly:</INST>`,
-  
+
   categorize: `You are an expert at analyzing and categorizing text content. For the given text, analyze it and categorize relevant parts into the provided categories. 
                Only select text that strongly matches the categories, with high confidence. Format your response as JSON.`,
-  
+
   insights: `<INST>You are an expert text analyzer. Your task is to extract key insights from the provided text and organize them into specific categories. Follow these requirements exactly:
 
 1. Output Format:
@@ -72,6 +73,9 @@ Now, analyze the following text and generate thought-provoking questions followi
    - Skip categories that don't apply
    - Ensure proper JSON formatting
 
+
+You must return a JSON object of exactly this format. No other text.
+
 Example Response Format:
 {
   "Main Points": ["point 1", "point 2"],
@@ -81,151 +85,163 @@ Example Response Format:
   "Technical Details": ["detail 1", "detail 2"],
   "Questions": ["question 1", "question 2"]
 }</INST>`,
-  
-  summary: `<INST>You are a professional summarizer. Your task is to create a clear, concise summary of the following text. Follow these requirements exactly:
 
-1. Length: Write exactly 3-5 sentences, no more and no less
-2. Style: 
-   - Use clear, direct language
-   - Focus on the most important information
-   - Maintain a professional tone
+  summary: `<INST>Your task is to create a clear, concise summary of the following text with these requirements:
+
+1. Length: Exactly 3-5 sentences.
+2. Style:
+   - Prefix each sentence with a count of what number sentence it is.
+   - Use direct language and maintain a professional tone.
+   - Focus on key information and avoid unnecessary details or jargon.
 3. Content:
-   - Capture the main topic and key message
-   - Include only essential details
-   - Avoid technical jargon unless crucial
+   - Capture the main topic and essential details.
+   - Do not use introductory phrases, bullet points, or special characters.
 4. Format:
-   - Write in paragraph form
-   - No bullet points or lists
-   - No introductory phrases like "This text discusses" or "This article is about"
+   - Write in paragraph form, with no lists or extra formatting.
 
-Remember: Be concise but informative. Start directly with the content.</INST>`
+Be concise but informative.
+Do not provide any content aside from the summary.
+</INST>`,
 };
 
 // Function declarations
-export function safeJSONParse(text, source = '') {
+export function safeJSONParse(text, source = "") {
   try {
-    // Try to clean the text first
-    const cleanText = text
-      .trim()
-      .replace(/^```json\s*/, '') // Remove JSON code block markers if present
-      .replace(/```\s*$/, '')     // Remove ending code block marker
-      .replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, '') // Remove zero-width spaces
-      .replace(/^\s*<\/?[a-z]+>/gi, '') // Remove any XML/HTML-like tags
-      .replace(/\n+/g, ' ')      // Replace multiple newlines with space
-      .replace(/\s+/g, ' ');     // Normalize whitespace
+    // Clean the text to prepare it for parsing
+    const cleanedText = cleanTextForJSON(text);
 
-    
-    const parsed = JSON.parse(cleanText);
+    const parsed = JSON.parse(cleanedText);
     return parsed;
   } catch (error) {
-    console.error('Original text:', text);
-    return null;
+    console.error(`Error parsing JSON from source "${source}":`, error);
+    console.error("Original input:", text);
+    return [];
   }
+}
+
+function cleanTextForJSON(text) {
+  return text
+    .trim()
+    .replace(/^```json\s*/, "") // Remove JSON code block markers at the beginning
+    .replace(/```\s*$/, "") // Remove JSON code block marker at the end
+    .replace(/^[\u200B\u200C\u200D\u200E\u200F\uFEFF]/, "") // Remove leading zero-width spaces
+    .replace(/^\s*<\/?[a-z]+>/gi, "") // Remove any XML/HTML-like tags
+    .replace(/\n+/g, " ") // Replace multiple newlines with space
+    .replace(/\s+/g, " "); // Normalize all whitespace to single spaces
 }
 
 export async function callHuggingFaceAPI(url, prompt, text) {
   if (!API_TOKEN) {
-    console.error("AI features are disabled");
-    return null;
+    console.error("AI features are disabled due to missing API token.");
+    return [];
   }
 
   const systemMessage = `<s>[INST] ${prompt} [/INST]`;
   const userMessage = `Here is the text to analyze:\n\n${text}\n\n[INST] Please provide your response following the format specified above: [/INST]`;
 
-  try {
+  const requestBody = {
+    inputs: systemMessage + userMessage,
+    parameters: {
+      max_new_tokens: 1000,
+      temperature: 0.3, // Lower temperature for more consistent output
+      top_p: 0.9,
+      do_sample: true,
+      return_full_text: false,
+      stop: ["</s>"], // Stop at end of response
+    },
+  };
 
+  try {
     const response = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        inputs: systemMessage + userMessage,
-        parameters: {
-          max_new_tokens: 1000,
-          temperature: 0.3,        // Lower temperature for more consistent output
-          top_p: 0.9,
-          do_sample: true,
-          return_full_text: false,
-          stop: ["</s>"]          // Stop at end of response
-        }
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`API Error Response:`, errorText);
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      console.error(`API Error Response: ${errorText}`);
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText}`,
+      );
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error("Error in API call:", error);
-    return null;
+    console.error("Error during API call:", error);
+    return [];
   }
 }
 
 export async function categorizeText(text, categories) {
   if (!text || !categories || categories.length === 0) {
     console.error("Invalid input for categorizeText");
-    return null;
+    return [];
   }
 
   const prompt = `${SYSTEM_PROMPTS.categorize}\n\nCategories: ${categories.join(", ")}\n\nProvide your response as a JSON object with 'labels' and 'scores' arrays.`;
-  
+
   try {
     const result = await callHuggingFaceAPI(HUGGING_FACE_API_URL, prompt, text);
-    if (!result || !result[0]) return null;
-    
+    if (!result || !result[0]) return [];
+
     // Parse the LLM's response into the expected format
     try {
-      const parsed = safeJSONParse(result[0].generated_text, 'categorizeText');
+      const parsed = safeJSONParse(result[0].generated_text, "categorizeText");
       return {
         labels: parsed.labels || [],
-        scores: parsed.scores || []
+        scores: parsed.scores || [],
       };
     } catch (parseError) {
       console.error("Error parsing LLM response:", parseError);
-      return null;
+      return [];
     }
   } catch (error) {
     console.error("Error in categorizeText:", error);
-    return null;
+    return [];
   }
 }
 
 export async function extractInsightsWithAI(text) {
   try {
-    const result = await callHuggingFaceAPI(HUGGING_FACE_API_URL, SYSTEM_PROMPTS.insights, text);
-    
+    const result = await callHuggingFaceAPI(
+      HUGGING_FACE_API_URL,
+      SYSTEM_PROMPTS.insights,
+      text,
+    );
+    console.log("[AI Insights Response]:", result[0].generated_text);
+
     if (!result || !result[0]) {
       console.error("No result from API");
-      return null;
+      return [];
     }
 
     // Try to extract JSON from the response
+
     const jsonMatch = result[0].generated_text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error("No JSON found in response");
-      return null;
+      return [];
     }
 
-    const insights = safeJSONParse(jsonMatch[0], 'extractInsightsWithAI');
+    const insights = safeJSONParse(jsonMatch[0], "extractInsightsWithAI");
     if (!insights) {
       console.error("Failed to parse insights JSON");
-      return null;
+      return [];
     }
 
     // Validate the structure
     const validCategories = [
-      'Main Points',
-      'Key Findings',
-      'Insights',
-      'Action Items',
-      'Technical Details',
-      'Questions'
+      "Main Points",
+      "Key Findings",
+      "Insights",
+      "Action Items",
+      "Technical Details",
+      "Questions",
     ];
 
     const validatedInsights = {};
@@ -238,61 +254,72 @@ export async function extractInsightsWithAI(text) {
     return validatedInsights;
   } catch (error) {
     console.error("Error extracting insights:", error);
-    return null;
+    return [];
   }
 }
 
 export async function generateAISummary(text) {
   try {
-    const result = await callHuggingFaceAPI(HUGGING_FACE_API_URL, SYSTEM_PROMPTS.summary, text);
-    
+    const result = await callHuggingFaceAPI(
+      HUGGING_FACE_API_URL,
+      SYSTEM_PROMPTS.summary,
+      text,
+    );
+    console.log("[AI Summary Response]: ", result[0].generated_text);
     if (!result || !result[0]) {
       console.error("No summary result from API");
-      return null;
+      return [];
     }
 
-    
     // Clean up the response
     let summary = result[0].generated_text
       .trim()
       .replace(/^["']|["']$/g, "") // Remove quotes if present
-      .replace(/\\n/g, "\n")       // Handle newlines properly
-      .replace(/^```.*\n?/, '')    // Remove starting code block
-      .replace(/```$/, '')         // Remove ending code block
+      .replace(/\\n/g, "\n") // Handle newlines properly
+      .replace(/^```.*\n?/, "") // Remove starting code block
+      .replace(/```$/, "") // Remove ending code block
       .trim();
 
     return summary;
   } catch (error) {
     console.error("Error generating summary:", error);
-    return null;
+    return [];
   }
 }
 
 export async function generateConceptQuestions(text) {
   try {
     const userMessage = `\n\n${text}\n</INST>`;
-    const response = await callHuggingFaceAPI(HUGGING_FACE_API_URL, SYSTEM_PROMPTS.concepts, text);
-    
+    const response = await callHuggingFaceAPI(
+      HUGGING_FACE_API_URL,
+      SYSTEM_PROMPTS.concepts,
+      text,
+    );
+    console.log(
+      "[AI Concept Questions Response]: ",
+      response[0].generated_text,
+    );
+
     if (!response) {
-      console.error('No response from AI');
-      return null;
+      console.error("No response from AI");
+      return [];
     }
 
     try {
       const parsed = JSON.parse(response[0].generated_text);
       if (!parsed || !parsed.questions || !Array.isArray(parsed.questions)) {
-        console.error('Invalid questions format:', parsed);
-        return null;
+        console.error("Invalid questions format:", parsed);
+        return [];
       }
       return parsed.questions;
     } catch (error) {
-      console.error('[generateConceptQuestions] JSON Parse Error:', error);
-      console.error('Original text: ', response[0].generated_text);
-      return null;
+      console.error("[generateConceptQuestions] JSON Parse Error:", error);
+      console.error("Original text: ", response[0].generated_text);
+      return [];
     }
   } catch (error) {
-    console.error('Failed to generate concept questions:', error);
-    return null;
+    console.error("Failed to generate concept questions:", error);
+    return [];
   }
 }
 
@@ -303,29 +330,38 @@ export async function generateConceptQuestions(text) {
  * @returns {Promise<Array<string>>} - Array of recommended tags
  */
 export async function recommendTags(text, availableTags) {
-    const prompt = `<INST>You are an expert at analyzing text content and categorizing it. 
-Given the following text and a list of available tags, determine which tags best describe the content.
-Only select tags that strongly match the content with high confidence. 
-Return your response as a JSON array containing ONLY the tag names that best fit.
-Also, if applicable, provide ONE new tag that could fit the content. This should be a category, not a specific.
-Example response format:  ["tag1", "tag2", "tag3", "new_tag"]
+  console.log("[provided tags]:", JSON.stringify(availableTags));
+  const prompt = `<INST>You are a skilled content analyzer. Given the following text and a list of available tags, your task is to determine which tags most accurately describe the content. Only select tags that strongly align with the text’s theme, using high confidence.
 
-Do not provide any other text, just the JSON response with existing and new fields.
+The available tags are: ${JSON.stringify(availableTags)}. No other tags are aviable. Only use this list of tags.
 
-Available tags: ${JSON.stringify(availableTags)}
+Do not provide an analysis of the content. Do not use any tags other than the provided tags.
 
-Analyze this text and select the most relevant tags:</INST>`;
+Format your response as a JSON array, including ONLY the tags that fit best. Do not add any content aside from the JSON.
 
-    try {
-        const response = await callHuggingFaceAPI(HUGGING_FACE_API_URL, prompt, text);
-        const tags = safeJSONParse(response[0].generated_text, 'tag recommendation');
-        
-        // Ensure we only return tags that exist in availableTags
-        return Array.isArray(tags) 
-            ? tags
-            : [];
-    } catch (error) {
-        console.error('Error recommending tags:', error);
-        return [];
-    }
+Example response format:
+
+["tag1", "tag2", "tag3", "tag4"]
+
+
+Now, analyze the text and select the most relevant tags:</INST>`;
+
+  try {
+    const response = await callHuggingFaceAPI(
+      HUGGING_FACE_API_URL,
+      prompt,
+      text,
+    );
+    console.log("[AI Tags Response]:", response[0].generated_text);
+    const tags = safeJSONParse(
+      response[0].generated_text || [],
+      "tag recommendation",
+    );
+
+    // Ensure we only return tags that exist in availableTags
+    return Array.isArray(tags) ? tags : [];
+  } catch (error) {
+    console.error("Error recommending tags:", error);
+    return [];
+  }
 }
