@@ -1,20 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import DOMPurify from "dompurify";
 import debounce from "lodash.debounce";
-import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import "react-markdown-editor-lite/lib/index.css";
-import RelatedArticles from "./Content/RelatedArticles";
-import NotesEditor from "./Content/NotesEditor";
 import Header from "./Content/Header";
 import HighlightManager from "./ActiveReading/HighlightManager";
 import MarginNotes from "./ActiveReading/MarginNotes";
 import HighlightPopup from "./ActiveReading/HighlightPopup";
 import { useActiveReading } from "./ActiveReading/ActiveReadingProvider";
-import { processArticleContent } from "../../utils/contentUtils";
 import ArticleContent from "./Content/ArticleContent";
-import { annotate } from 'rough-notation';
+import { annotate } from "rough-notation";
 
 function ContentSection({
   article,
@@ -54,7 +49,7 @@ function ContentSection({
     addNote,
     editNote,
     deleteNote,
-    onLookupWord
+    onLookupWord,
   } = useActiveReading();
 
   const [selectedHighlight, setSelectedHighlight] = useState(null);
@@ -64,14 +59,18 @@ function ContentSection({
     if (!contentRef.current || !highlights.length) return;
 
     // Get all existing highlights
-    const existingHighlights = contentRef.current.querySelectorAll('[data-highlight-id]');
-    const existingIds = new Set(Array.from(existingHighlights).map(el => el.dataset.highlightId));
-    
+    const existingHighlights = contentRef.current.querySelectorAll(
+      "[data-highlight-id]",
+    );
+    const existingIds = new Set(
+      Array.from(existingHighlights).map((el) => el.dataset.highlightId),
+    );
+
     // Find highlights that need to be removed or updated
-    existingHighlights.forEach(highlight => {
+    existingHighlights.forEach((highlight) => {
       const id = highlight.dataset.highlightId;
-      const currentHighlight = highlights.find(h => h.id === id);
-      
+      const currentHighlight = highlights.find((h) => h.id === id);
+
       if (!currentHighlight) {
         // Remove highlight if it no longer exists
         const annotation = highlight._roughAnnotation;
@@ -92,23 +91,23 @@ function ContentSection({
         if (annotation) {
           annotation.remove();
         }
-        
+
         const colorMap = {
-          yellow: '#ffd54f',
-          green: '#81c784',
-          blue: '#64b5f6',
-          pink: '#f06292',
-          purple: '#ba68c8'
+          yellow: "#ffd54f",
+          green: "#81c784",
+          blue: "#64b5f6",
+          pink: "#f06292",
+          purple: "#ba68c8",
         };
 
-        const newAnnotation = annotate(highlight, { 
-          type: currentHighlight.annotationType || 'highlight',
-          color: colorMap[currentHighlight.color || 'yellow'],
+        const newAnnotation = annotate(highlight, {
+          type: currentHighlight.annotationType || "highlight",
+          color: colorMap[currentHighlight.color || "yellow"],
           iterations: 1,
           multiline: true,
-          padding: currentHighlight.annotationType === 'box' ? 5 : 2,
+          padding: currentHighlight.annotationType === "box" ? 5 : 2,
           animationDuration: 200,
-          strokeWidth: 2
+          strokeWidth: 2,
         });
 
         highlight.dataset.color = currentHighlight.color;
@@ -119,20 +118,28 @@ function ContentSection({
     });
 
     // Sort highlights by start position (descending) to avoid position shifts
-    const sortedHighlights = [...highlights].sort((a, b) => b.range.start - a.range.start);
+    const sortedHighlights = [...highlights].sort(
+      (a, b) => b.range.start - a.range.start,
+    );
 
     // Process each highlight that doesn't already exist
-    sortedHighlights.forEach(highlight => {
+    sortedHighlights.forEach((highlight) => {
       // Skip if highlight already exists
       if (existingIds.has(highlight.id)) return;
 
       try {
         const range = document.createRange();
-        const startNode = findNodeAtPosition(contentRef.current, highlight.range.start);
-        const endNode = findNodeAtPosition(contentRef.current, highlight.range.end);
-        
+        const startNode = findNodeAtPosition(
+          contentRef.current,
+          highlight.range.start,
+        );
+        const endNode = findNodeAtPosition(
+          contentRef.current,
+          highlight.range.end,
+        );
+
         if (!startNode || !endNode) {
-          console.error('Could not find start or end node for highlight');
+          console.error("Could not find start or end node for highlight");
           return;
         }
 
@@ -140,10 +147,11 @@ function ContentSection({
         range.setEnd(endNode.node, endNode.offset);
 
         // Create highlight span
-        const highlightSpan = document.createElement('span');
+        const highlightSpan = document.createElement("span");
         highlightSpan.dataset.highlightId = highlight.id;
-        highlightSpan.dataset.color = highlight.color || 'yellow';
-        highlightSpan.dataset.annotationType = highlight.annotationType || 'highlight';
+        highlightSpan.dataset.color = highlight.color || "yellow";
+        highlightSpan.dataset.annotationType =
+          highlight.annotationType || "highlight";
 
         try {
           // Try to surround contents if possible
@@ -157,33 +165,31 @@ function ContentSection({
 
         // Create rough notation
         const colorMap = {
-          yellow: '#ffd54f',
-          green: '#81c784',
-          blue: '#64b5f6',
-          pink: '#f06292',
-          purple: '#ba68c8'
+          yellow: "#ffd54f",
+          green: "#81c784",
+          blue: "#64b5f6",
+          pink: "#f06292",
+          purple: "#ba68c8",
         };
 
-        const annotation = annotate(highlightSpan, { 
-          type: highlight.annotationType || 'highlight',
-          color: colorMap[highlight.color || 'yellow'],
+        const annotation = annotate(highlightSpan, {
+          type: highlight.annotationType || "highlight",
+          color: colorMap[highlight.color || "yellow"],
           iterations: 1,
           multiline: true,
-          padding: highlight.annotationType === 'box' ? 5 : 2,
+          padding: highlight.annotationType === "box" ? 5 : 2,
           animationDuration: 200,
-          strokeWidth: 2
+          strokeWidth: 2,
         });
 
         // Store annotation reference for cleanup
         highlightSpan._roughAnnotation = annotation;
-        
+
         // Show the annotation immediately
         requestAnimationFrame(() => {
           annotation.show();
         });
-      } catch (error) {
-        console.error('Error rendering highlight:', error);
-      }
+      } catch (error) {}
     });
   }, [highlights]);
 
@@ -194,16 +200,19 @@ function ContentSection({
       root,
       NodeFilter.SHOW_TEXT,
       null,
-      false
+      false,
     );
 
     let node;
     while ((node = walker.nextNode())) {
       const nodeLength = node.textContent.length;
-      if (currentPosition <= targetPosition && targetPosition <= currentPosition + nodeLength) {
+      if (
+        currentPosition <= targetPosition &&
+        targetPosition <= currentPosition + nodeLength
+      ) {
         return {
           node: node,
-          offset: targetPosition - currentPosition
+          offset: targetPosition - currentPosition,
         };
       }
       currentPosition += nodeLength;
@@ -211,32 +220,34 @@ function ContentSection({
     return null;
   };
 
-  const handleHighlightClick = useCallback((event) => {
-    const highlightSpan = event.target.closest('[data-highlight-id]');
-    if (!highlightSpan) return;
+  const handleHighlightClick = useCallback(
+    (event) => {
+      const highlightSpan = event.target.closest("[data-highlight-id]");
+      if (!highlightSpan) return;
 
-    const highlightId = highlightSpan.dataset.highlightId;
-    const highlight = highlights.find(h => h.id === highlightId);
-    if (!highlight) return;
+      const highlightId = highlightSpan.dataset.highlightId;
+      const highlight = highlights.find((h) => h.id === highlightId);
+      if (!highlight) return;
 
-    const rect = highlightSpan.getBoundingClientRect();
-    setSelectedHighlight(highlightId);
-    setPopupPosition({
-      x: rect.left + (rect.width / 2),
-      y: rect.top - 10
-    });
-  }, [highlights]);
+      const rect = highlightSpan.getBoundingClientRect();
+      setSelectedHighlight(highlightId);
+      setPopupPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+      });
+    },
+    [highlights],
+  );
 
   useEffect(() => {
     const content = contentRef.current;
     if (!content) return;
 
-    content.addEventListener('click', handleHighlightClick);
-    return () => content.removeEventListener('click', handleHighlightClick);
+    content.addEventListener("click", handleHighlightClick);
+    return () => content.removeEventListener("click", handleHighlightClick);
   }, [handleHighlightClick]);
 
   useEffect(() => {
-    console.log("Rendering highlights with content:", contentRef.current);
     renderHighlights();
   }, [renderHighlights, highlights]);
 
@@ -253,31 +264,35 @@ function ContentSection({
   const handleAddNote = useCallback(() => {
     const selection = window.getSelection();
     const text = selection.toString().trim();
-    const highlightId = text ? addHighlight(text, {
-      start: selection.getRangeAt(0).startOffset,
-      end: selection.getRangeAt(0).endOffset,
-    }) : null;
+    const highlightId = text
+      ? addHighlight(text, {
+          start: selection.getRangeAt(0).startOffset,
+          end: selection.getRangeAt(0).endOffset,
+        })
+      : null;
 
-    addNote(
-      text ? `Note for: "${text}"` : "New note",
-      highlightId
-    );
+    addNote(text ? `Note for: "${text}"` : "New note", highlightId);
   }, [addHighlight, addNote]);
 
-  const handleRemoveHighlight = useCallback(async (highlightId) => {
-    await removeHighlight(highlightId);
-    setSelectedHighlight(null);
-    
-    // Remove the highlight span from the DOM
-    const highlightSpan = document.querySelector(`[data-highlight-id="${highlightId}"]`);
-    if (highlightSpan) {
-      const parent = highlightSpan.parentNode;
-      while (highlightSpan.firstChild) {
-        parent.insertBefore(highlightSpan.firstChild, highlightSpan);
+  const handleRemoveHighlight = useCallback(
+    async (highlightId) => {
+      await removeHighlight(highlightId);
+      setSelectedHighlight(null);
+
+      // Remove the highlight span from the DOM
+      const highlightSpan = document.querySelector(
+        `[data-highlight-id="${highlightId}"]`,
+      );
+      if (highlightSpan) {
+        const parent = highlightSpan.parentNode;
+        while (highlightSpan.firstChild) {
+          parent.insertBefore(highlightSpan.firstChild, highlightSpan);
+        }
+        parent.removeChild(highlightSpan);
       }
-      parent.removeChild(highlightSpan);
-    }
-  }, [removeHighlight]);
+    },
+    [removeHighlight],
+  );
 
   const renderContent = () => {
     return DOMPurify.sanitize(article.markdown || "No content available.");
@@ -291,21 +306,22 @@ function ContentSection({
       transition={{ duration: 0.5 }}
     >
       <Header title={title} editing={editing} setTitle={setTitle} />
-      <ArticleContent 
-        content={renderContent()} 
+      <ArticleContent
+        content={renderContent()}
         contentRef={contentRef}
         onHighlightsRendered={() => {
-          console.log("Content mounted, rendering highlights");
           renderHighlights();
         }}
       />
-      
+
       <AnimatePresence>
         {selectedHighlight && (
           <HighlightPopup
             position={popupPosition}
             highlightId={selectedHighlight}
-            highlightText={highlights.find(h => h.id === selectedHighlight)?.text}
+            highlightText={
+              highlights.find((h) => h.id === selectedHighlight)?.text
+            }
             onRemove={() => handleRemoveHighlight(selectedHighlight)}
             onClose={() => setSelectedHighlight(null)}
           />
@@ -320,13 +336,12 @@ function ContentSection({
         onAddNote={handleAddNote}
         onLookupWord={onLookupWord}
       />
-      
+
       <MarginNotes
         notes={marginNotes}
         onEditNote={editNote}
         onDeleteNote={deleteNote}
       />
-
     </motion.div>
   );
 }

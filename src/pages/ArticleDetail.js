@@ -26,6 +26,7 @@ import ScrollButton from "../components/ArticleDetails/ScrollButton";
 import Loading from "../components/Loading";
 import ErrorComponent from "../components/Error";
 import { ActiveReadingProvider } from "../components/ArticleDetails/ActiveReading/ActiveReadingProvider";
+import { formatDistance, format } from "date-fns";
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -68,9 +69,11 @@ function ArticleDetail() {
 
     // Only show notes and related items tabs if user can edit
     if (canEdit) {
-      baseTabs.splice(2, 0, 
+      baseTabs.splice(
+        2,
+        0,
         { id: "notes", label: "Notes" },
-        { id: "related", label: "Related Items" }
+        { id: "related", label: "Related Items" },
       );
     }
 
@@ -79,8 +82,8 @@ function ArticleDetail() {
 
   // Redirect from protected tabs if user can't edit
   useEffect(() => {
-    if (!canEdit && (activeTab === 'notes' || activeTab === 'related')) {
-      setActiveTab('content');
+    if (!canEdit && (activeTab === "notes" || activeTab === "related")) {
+      setActiveTab("content");
     }
   }, [canEdit, activeTab]);
 
@@ -99,9 +102,13 @@ function ArticleDetail() {
         ] = await Promise.all([
           getDoc(doc(db, "articles", id)),
           getDocs(collection(db, "tags")),
-          getDocs(query(collection(db, "highlights"), where("articleId", "==", id))),
+          getDocs(
+            query(collection(db, "highlights"), where("articleId", "==", id)),
+          ),
           getDocs(query(collection(db, "notes"), where("articleId", "==", id))),
-          getDocs(query(collection(db, "marginNotes"), where("articleId", "==", id))),
+          getDocs(
+            query(collection(db, "marginNotes"), where("articleId", "==", id)),
+          ),
         ]);
 
         if (!articleSnapshot.exists()) {
@@ -116,7 +123,9 @@ function ArticleDetail() {
         // Process article data
         setArticle(articleData);
         setTitle(articleData.title || "");
-        setTags(Array.isArray(articleData.tags) ? articleData.tags.join(", ") : "");
+        setTags(
+          Array.isArray(articleData.tags) ? articleData.tags.join(", ") : "",
+        );
         setStatus(articleData.status || "");
         setArchived(articleData.archived || false);
         setIsPublic(articleData.public || false);
@@ -146,9 +155,10 @@ function ArticleDetail() {
             ...doc.data(),
           }));
           // Combine all note contents if there are any
-          const combinedNotes = notesData.length > 0
-            ? notesData.map(note => note.content || '').join('\n\n')
-            : articleData.note || '';
+          const combinedNotes =
+            notesData.length > 0
+              ? notesData.map((note) => note.content || "").join("\n\n")
+              : articleData.note || "";
           setNotes(combinedNotes);
           setNotesLoading(false);
         });
@@ -165,7 +175,6 @@ function ArticleDetail() {
 
         // Fetch related articles asynchronously
         fetchRelatedArticles(articleData);
-
       } catch (err) {
         console.error("Error fetching article:", err);
         setError("Failed to load article.");
@@ -183,20 +192,23 @@ function ArticleDetail() {
         }));
 
         const filteredArticles = allArticles.filter((article) => {
-          return article.public || (currentUser && article.userid === currentUser.uid);
+          return (
+            article.public ||
+            (currentUser && article.userid === currentUser.uid)
+          );
         });
 
         const [similarityScores, related] = findRelatedArticles(
           currentArticle,
           filteredArticles,
-          5
+          5,
         );
 
         setRelatedArticles(
           related.map((article, index) => ({
             ...article,
             similarity: similarityScores[index],
-          }))
+          })),
         );
       } catch (err) {
         console.error("Error fetching related articles:", err);
@@ -309,8 +321,9 @@ function ArticleDetail() {
   }
 
   // Only render the entire UI when all components are loaded
-  const allComponentsLoaded = !notesLoading && !highlightsLoading && !marginNotesLoading;
-  
+  const allComponentsLoaded =
+    !notesLoading && !highlightsLoading && !marginNotesLoading;
+
   if (!allComponentsLoaded) {
     return <Loading loading="Loading components..." />;
   }
@@ -324,12 +337,17 @@ function ArticleDetail() {
             setShowSidebar={setShowSidebar}
             articleId={id}
             title={title}
+            date={format(article.date.toDate(), "yyyy-MM-dd")}
           />
           <div className="container mx-auto px-4 py-6 relative">
             <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-grow">
                 {/* Only show tabs when all related data is loaded */}
-                <TabBar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabBar
+                  tabs={tabs}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                />
                 <div className="bg-white rounded-lg shadow-sm">
                   <div className="p-4">
                     {activeTab === "content" && (
